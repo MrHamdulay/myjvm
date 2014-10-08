@@ -29,8 +29,20 @@ class ClassReader:
         for i in xrange(constant_pool_length-1):
             self.constant_pool.add_pool(self.parse_constant_pool_item())
 
+        print str(self.constant_pool)
+
+        access_flags = self._read_byte2()
+        this_class = self._read_byte2()
+        super_class = self._read_byte2()
+
+        interfaces_count = self._read_byte2()
+        self.interfaces = []
+        for i in xrange(interfaces_count):
+            self.interfaces.append(self._read_byte2())
+
+
         field_length = self._read_byte2()
-        fields = []
+        self.fields = []
         for i in xrange(field_length):
             self.fields.append(self.parse_field())
 
@@ -141,7 +153,11 @@ class ClassReader:
         attributes = []
         for i in xrange(attributes_count):
             attributes.append(self.parse_attribute())
-        return access_flags, name_index, descriptor_index, attributes
+
+        name = self.constant_pool.get_string(name_index)
+        print access_flags, name, descriptor_index, attributes
+        descriptor = self.constant_pool.get_string(descriptor_index)
+        return access_flags, name, descriptor, attributes
 
     def parse_attribute(self):
         name_index = self._read_byte2()
@@ -151,7 +167,8 @@ class ClassReader:
 
         if name == 'ConstantValue':
             value_index = self._read_byte2()
-            return name_index, length, value_index
+            value = self.constant_pool.get_object(value_index)
+            return name, length, value
         elif name == 'Code':
             max_stack = self._read_byte2()
             max_locals = self._read_byte2()
@@ -189,12 +206,17 @@ class ClassReader:
                 outer_class_info_index = self._read_byte2()
                 inner_name_index = self._read_byte2()
                 inner_class_access_flags = self._read_byte2()
-                inner_classes.append((inner_class_info_index, outer_class_info_index, inner_name_index, inner_class_access_flags))
+
+                inner_class = self.constant_pool.get_class(inner_class_info_index)
+                outer_class = self.constant_pool.get_class(outer_class_info_index)
+                inner_name = self.constant_pool.get_string(inner_name_index)
+                inner_classes.append((inner_class, outer_class, inner_name, inner_class_access_flags))
             return name, inner_classes
         elif name == 'EnclosingMethod':
             class_index = self._read_byte2()
             method_index = self._read_byte2()
-            return name, class_index, method_index
+            classs = self.constant_pool.get_class(class_index)
+            return name, classs, method_index
         elif name == 'Synthetic':
             return name,
         elif name == 'Signature':
@@ -202,7 +224,8 @@ class ClassReader:
             return name, signature_index
         elif name == 'SourceFile':
             source_file_index = self._read_byte2()
-            return name, source_file_index
+            source_file = self.constant_pool.get_string(source_file_index)
+            return name, source_file
         elif name == 'LineNumberTable':
             length = self._read_byte2()
             line_table = []
@@ -237,9 +260,29 @@ class ClassReader:
             attribute_name_index = self._read_byte2()
             attribute_name_length = self._read_byte4()
             default_value = self.parse_element_value()
-            return name, attribute_name_index, attribute_name_length, default_value
+
+
+            attribute_name = self.constant_pool.get_string(attribute_name_index)
+            return name, attribute_name, attribute_name_length, default_value
         elif name == 'BootstapMethods':
-            pass
+            num_bootstrap_methods = self._read_byte2()
+            bootstrap_methods = []
+            for i in xrange(num_bootstrap_methods):
+                bootstrap_method_ref = self._read_byte2()
+                num_bootstrap_arguments = self._read_byte2()
+                arguments = []
+                for j in xrange(num_bootstrap_arguments):
+                    arguments.append(self._read_byte2())
+                bootstrap_methods.append(bootstrap_method_ref, arguments)
+            return name, bootstrap_methods
+        elif name == 'MethodParameters':
+            parameters_count = self._read_byte()
+            parameters = []
+            for i in xrange(parameters_count):
+                name_index, access_flags = self._read_byte2(), self._read_byte2()
+                name = self.constant_pool.get_string(name_index)
+                parameters.append((name, access_flags))
+            return name, parameters
         else:
             print 'Unknown attribute', name
             for i in xrange(length):
@@ -257,7 +300,8 @@ class ClassReader:
         for j in xrange(num_element_value_pairs):
             element_name_index = self.read_byte2()
             element_value = self.parse_element_value()
-            element_values.append((element_name_index, element_value))
+            element_name = self.constant_pool.get_string(element_name_index)
+            element_values.append((element_name, element_value))
         return 'element_value_pairs', element_values
 
     def parse_element_value(self):
@@ -268,7 +312,10 @@ class ClassReader:
         elif tag == 'e':
             type_name_index = self._read_byte2()
             const_name_index = self._read_byte2()
-            return tag, type_name_index, const_name_index
+
+            type_name = self.constant_pool.get_string(type_name_index)
+            const_name = self.constant_pool.get_string(const_name_index)
+            return tag, type_name, const_name
         elif tag == '@':
             annotation_value = self.parse_annotation()
             return tag, annotation_value
@@ -278,7 +325,6 @@ class ClassReader:
             for i in xrange(num_values):
                 array.append(self.parse_element_value())
             return tag, array
-
 
 
     def parse_stack_map_frame(self):
@@ -406,16 +452,8 @@ class ClassReader:
             value = value << 8 | ord(self.file_reader.read(1))
         return value
 
-    @property
-    def human_readable_constant_pool(self):
-        result = ''
-        for constant in self.constant_pool:
-            result += CONSTANT_POOL_NAMES[constant[0]-1] + ' ' + ' '.join(map(str, constant[1:])) +'\n'
-        return result
-
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         print 'classreader.py <filename>.class'
         sys.exit(0)
     classreader = ClassReader(open(sys.argv[1]))
-    print classreader.human_readable_constant_pool

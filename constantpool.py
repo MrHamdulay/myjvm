@@ -8,9 +8,26 @@ class ConstantPool:
         self.constant_pool = []
 
     def add_pool(self, *args):
-        self.constant_pool.append(args)
+        self.constant_pool.append(*args)
 
     def get_string(self, index):
-        if self.constant_pool[index][0] == CONSTANT_Utf8:
-            raise ConstantPoolException()
+        constant = self.constant_pool[index]
+        if constant[0] != CONSTANT_Utf8:
+            raise ConstantPoolException('Expected UTF8 got %s %s' % (CONSTANT_POOL_NAMES[constant[0]-1], constant[1:]))
+        return constant[1]
+
+    def get_class(self, index):
+        constant = self.constant_pool[index]
+        if constant[0] != CONSTANT_Class:
+            raise ConstantPoolException('Expected Class got %s %s' % (CONSTANT_POOL_NAMES[constant[0]-1], constant[1:]))
+        return constant[1]
+
+    def get_object(self, index):
         return self.constant_pool[index][1]
+
+
+    def __repr__(self):
+        result = ''
+        for constant in self.constant_pool:
+            result += '%s %s' % (CONSTANT_POOL_NAMES[constant[0]-1],  ' '.join(map(str, constant[1:])) +'\n')
+        return result
