@@ -32,12 +32,12 @@ class ClassReader:
             klass.constant_pool.add_pool(self.parse_constant_pool_item())
 
         klass.access_flags = self._read_byte2()
-        klass.this_class = self._read_byte2()
-        klass.super_class = self._read_byte2()
+        klass.this_class = klass.constant_pool.get_class(self._read_byte2())
+        klass.super_class = klass.constant_pool.get_class(self._read_byte2())
 
         interfaces_count = self._read_byte2()
         for i in xrange(interfaces_count):
-            klass.interfaces.append(self._read_byte2())
+            klass.interfaces.append(klass.constant_pool.get_class(self._read_byte2()))
 
 
         field_length = self._read_byte2()
@@ -51,6 +51,9 @@ class ClassReader:
         attribute_count = self._read_byte2()
         for i in xrange(attribute_count):
             klass.attributes.append(self.parse_attribute())
+
+        # make sure we're at the end of our file
+        assert not self.file_reader.read(1)
 
     def parse_constant_pool_item(self):
         tag = self._read_byte()

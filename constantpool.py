@@ -20,11 +20,10 @@ class ConstantPool:
         constant = self.constant_pool[index-1]
         if constant[0] != CONSTANT_Class:
             raise ConstantPoolException('Expected Class got %s %s' % (CONSTANT_POOL_NAMES[constant[0]-1], constant[1:]))
-        return constant[1]
+        return self.get_string(constant[1])
 
     def get_object(self, index):
         return self.constant_pool[index-1][1]
-
 
     def __repr__(self):
         result = ''
