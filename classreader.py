@@ -6,8 +6,10 @@ class MalformedClassException(Exception):
     pass
 
 class ClassReader:
+    constant_pool = None
+    file_reader = None
     def __init__(self, filereader):
-        self.filereader = filereader
+        self.file_reader = filereader
         self.parse()
 
     def parse(self):
@@ -33,7 +35,7 @@ class ClassReader:
             # index into constant pool of type UTF8 that references a class / array type
             name_index = self._read_byte2()
             return tag, name_index
-        elif tag in (CONSTANT_FieldRef, CONSTANT_MethodRef, CONSTANT_InterfaceMethod):
+        elif tag in (CONSTANT_Fieldref, CONSTANT_Methodref, CONSTANT_InterfaceMethodref):
             class_index = self._read_byte2()
             name_and_type_index = self._read_byte2()
             return tag, class_index, name_and_type_index
@@ -114,7 +116,7 @@ class ClassReader:
         elif tag == CONSTANT_MethodHandle:
             reference_handle = self._read_byte()
             reference_index = self._read_byte2()
-            return tag, reference_handle, reference_index)
+            return tag, reference_handle, reference_index
         elif tag == CONSTANT_MethodType:
             descriptor_index = self._read_byte2()
             return tag, descriptor_index
@@ -126,19 +128,20 @@ class ClassReader:
 
 
     def _read_byte(self):
-        return ord(self.filereader.read(1))
+        return ord(self.file_reader.read(1))
 
     def _read_byte2(self):
-        return ord(self.filereader.read(1)) << 8 | ord(self.filereader.read(1))
+        return ord(self.file_reader.read(1)) << 8 | ord(self.file_reader.read(1))
 
     def _read_byte4(self):
         value = 0
         for i in xrange(4):
-            value = value << 8 | ord(self.filereader.read(1))
+            value = value << 8 | ord(self.file_reader.read(1))
         return value
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         print 'classreader.py <filename>.class'
         sys.exit(0)
-    ClassReader(open(sys.argv[1]))
+    classreader = ClassReader(open(sys.argv[1]))
+    print classreader.constant_pool
