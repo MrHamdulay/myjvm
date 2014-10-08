@@ -145,6 +145,7 @@ class ClassReader:
 
     def parse_attribute(self):
         name_index = self._read_byte2()
+        # TODO: somehow assert we are reading exactly length bytes by the end of this
         length = self._read_byte4()
         name = self.constant_pool.get_string(attribute_name_index)
 
@@ -174,11 +175,85 @@ class ClassReader:
             for i in xrange(num_entries):
                 stack_map_frames.append(self.parse_stack_map_frame())
             return name, stack_map_frames
+        elif name == 'Exceptions':
+            num_exceptions = self._read_byte2()
+            exception_indexes = []
+            for i in xrange(num_exceptions):
+                exception_indexes.append(self.read_byte2())
+            return nae, exception_indexes
+        elif name == 'InnerClasses':
+            num_classes = self._read_byte2()
+            inner_classes = []
+            for i in xrange(num_casses):
+                inner_class_info_index = self._read_byte2()
+                outer_class_info_index = self._read_byte2()
+                inner_name_index = self._read_byte2()
+                inner_class_access_flags = self._read_byte2()
+                inner_classes.append((inner_class_info_index, outer_class_info_index, inner_name_index, inner_class_access_flags))
+            return name, inner_classes
+        elif name == 'EnclosingMethod':
+            class_index = self._read_byte2()
+            method_index = self._read_byte2()
+            return name, class_index, method_index
+        elif name == 'Synthetic':
+            return name,
+        elif name == 'Signature':
+            signature_index = self._read_byte2()
+            return name, signature_index
+        elif name == 'SourceFile':
+            source_file_index = self._read_byte2()
+            return name, source_file_index
+        elif name == 'LineNumberTable':
+            length = self._read_byte2()
+            line_table = []
+            for i in xrange(length):
+                start_pc, line_number = self._read_byte2(), self._read_byte2()
+                line_table.append((start_pc, line_number))
+            return name, line_table
+        elif name == 'RuntimeVisibleAnnotations':
+            num_annotations = self._read_byte2()
+            annotations = []
+            for i in xrange(num_annotations):
+                annotations.append(self.parse_annotation())
+
+            return name, type_index, annotations
+
         else:
             print 'Unknown attribute', name
             for i in xrange(length):
                 self._read_byte()
             return name,
+
+    def parse_annotation(self):
+        type_index = self._read_byte2()
+        num_element_value_pairs = self._read_byte2()
+        element_values = []
+        for j in xrange(num_element_value_pairs):
+            element_name_index = self.read_byte2()
+            element_value = self.parse_element_value()
+            element_values.append((element_name_index, element_value))
+        return type_index, element_values
+
+    def parse_element_value(self):
+        tag = chr(self._read_byte())
+        if tag in 'BCDFIJSZsc':
+            index = self._read_byte2()
+            return tag, index
+        elif tag == 'e':
+            type_name_index = self._read_byte2()
+            const_name_index = self._read_byte2()
+            return tag, type_name_index, const_name_index
+        elif tag == '@':
+            annotation_value = self.parse_annotation()
+            return tag, annotation_value
+        elif tag == '[':
+            num_values = self._read_byte2()
+            array = []
+            for i in xrange(num_values):
+                array.append(self.parse_element_value())
+            return tag, array
+
+
 
     def parse_stack_map_frame(self):
         tag = self._read_byte()
