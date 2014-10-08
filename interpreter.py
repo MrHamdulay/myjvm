@@ -27,6 +27,7 @@ class Interpreter:
 
     def run(self):
         klass = self.load_class(self.initial_class_name)
+        print klass.attributes
 
 
 
