@@ -210,14 +210,36 @@ class ClassReader:
                 start_pc, line_number = self._read_byte2(), self._read_byte2()
                 line_table.append((start_pc, line_number))
             return name, line_table
-        elif name == 'RuntimeVisibleAnnotations':
+        elif name in ('RuntimeVisibleAnnotations', 'RuntimeInvisibleAnnotations'):
             num_annotations = self._read_byte2()
             annotations = []
             for i in xrange(num_annotations):
                 annotations.append(self.parse_annotation())
 
             return name, type_index, annotations
-
+        elif name in ('RuntimeVisibleParameterAnnotations', 'RuntimeInvisibleParameterAnnotations'):
+            num_parameters = self._read_byte()
+            parameters = []
+            for i in xrange(num_parameters):
+                num_annotations = self._read_byte2()
+                annotations = []
+                for i in xrange(num_annotations):
+                    annotations.append(self.parse_annotation())
+                parameters.append(annotations)
+            return name, parameters
+        elif name in ('RuntimeVisibleTypeAnnotations', 'RuntimeInvisibleTypeAnnotations'):
+            num_annotations = self._read_byte2()
+            type_annotations = []
+            for i in xrange(num_annotations):
+                type_annotations.append(self.parse_type_annotation())
+            return name, type_annotations
+        elif name == 'AnnotationDefault':
+            attribute_name_index = self._read_byte2()
+            attribute_name_length = self._read_byte4()
+            default_value = self.parse_element_value()
+            return name, attribute_name_index, attribute_name_length, default_value
+        elif name == 'BootstapMethods':
+            pass
         else:
             print 'Unknown attribute', name
             for i in xrange(length):
@@ -226,13 +248,17 @@ class ClassReader:
 
     def parse_annotation(self):
         type_index = self._read_byte2()
+        element_values = self.parse_element_value_pairs()
+        return type_index, element_values
+
+    def parse_element_value_pairs(self):
         num_element_value_pairs = self._read_byte2()
         element_values = []
         for j in xrange(num_element_value_pairs):
             element_name_index = self.read_byte2()
             element_value = self.parse_element_value()
             element_values.append((element_name_index, element_value))
-        return type_index, element_values
+        return 'element_value_pairs', element_values
 
     def parse_element_value(self):
         tag = chr(self._read_byte())
@@ -299,6 +325,73 @@ class ClassReader:
         elif tag in (ITEM_Object, ITEM_Unitialised):
             offset = self._read_byte2()
             return tag, offset
+
+    def parse_type_annotation(self):
+        target_type = self.parse_target_type()
+        type_path = self.parse_type_path()
+        type_index = self._read_byte2()
+        element_values = self.parse_element_value_pairs()
+        return target_type, type_path, type_index, element_values
+
+    def parse_target_type(self):
+        target_type = self._read_byte()
+        # type parameter target
+        if taget_type in (0x0, 0x1):
+            type_parameter_index = self._read_byte()
+            return 'type', type_parameter_index
+        # supertype target
+        elif target_type == 0x10:
+            supertype_index = self._read_byte2()
+            return 'supertype', supertype_index
+# type_parameter_bound_target
+        elif target_type in (0x11, 0x12):
+            type_parameter_index = self._read_byte()
+            bound_index = self._read_byte()
+            return 'type_parameter', type_parameter_index, bound_index
+        # empty target_type
+        elif target_type in (0x13, 0x14, 0x15):
+            return 'empty',
+# formal parameter target
+        elif target_type == 0x16:
+            formal_parameter_index = self._read_byte()
+            return 'formal', formal_parameter_index
+# throws target
+        elif target_type == 0x17:
+            throws_type_index = self._read_byte2()
+            return 'throws', throws_type_index
+#local var target
+        elif target_type in (0x40, 0x41):
+            length = self._read_byte2()
+            local_var_table = []
+            for i in xrange(length):
+                start_pc = self._read_byte2()
+                length = self._read_byte2()
+                index = self._read_byte2()
+                local_var_table.append((start_pc, length, index))
+            return 'local_var', local_var_table
+#catch target
+        elif target_type == 0x42:
+            exception_table_index = self._read_byte2()
+            return 'catch', exception_table_index
+#offset target
+        elif target_type in (0x43, 0x44, 0x45, 0x46):
+            offset = self._read_byte2()
+            return 'offset', offset
+        #type_argument_target
+        elif target_type in (0x47, 0x48, 0x49, 0x4A, 0x4B):
+            offset = self._read_byte2()
+            type_argument_index = self._read_byte()
+            return 'type_argument', offset, type_argument_index
+        else:
+            raise Exception
+
+    def parse_type_path(self):
+        path_length = self._read_byte()
+        type_path  = []
+        for i in xrange(path_length):
+            type_path_kind = self._read_byte()
+            type_argument_index = self._read_byte()
+        return 'type_path', type_path
 
 
     def _read_byte(self):
