@@ -1,6 +1,7 @@
 import sys
 
 from classconstants import *
+from constantpool import ConstantPool
 
 class MalformedClassException(Exception):
     pass
@@ -9,6 +10,7 @@ class ClassReader:
     constant_pool = None
     file_reader = None
     def __init__(self, filereader):
+        self.constant_pool = ConstantPool()
         self.file_reader = filereader
         self.parse()
 
@@ -24,9 +26,13 @@ class ClassReader:
         self.major_version = self._read_byte2()
 
         constant_pool_length = self._read_byte2()
-        self.constant_pool = []
-        for i in xrange(constant_pool_length):
-            self.constant_pool.append(self.parse_constant_pool_item())
+        for i in xrange(constant_pool_length-1):
+            self.constant_pool.add_pool(self.parse_constant_pool_item())
+
+        field_length = self._read_byte2()
+        fields = []
+        for i in xrange(field_length):
+            self.fields.append(self.parse_field())
 
     def parse_constant_pool_item(self):
         tag = self._read_byte()
@@ -124,6 +130,92 @@ class ClassReader:
             bootstrap_method_attr_index = self._read_byte2()
             name_and_type_index = self._read_byte22()
             return tag, bootstrap_method_attr_index, name_and_type_index
+        else:
+            raise Exception('Unknown tag in constant pool ' + tag)
+
+    def parse_field(self):
+        access_flags = self._read_byte2()
+        name_index = self._read_byte2()
+        descriptor_index = self._read_byte2()
+        attributes_count = self._read_byte2()
+        attributes = []
+        for i in xrange(attributes_count):
+            attributes.append(self.parse_attribute())
+        return access_flags, name_index, descriptor_index, attributes
+
+    def parse_attribute(self):
+        name_index = self._read_byte2()
+        length = self._read_byte4()
+        name = self.constant_pool.get_string(attribute_name_index)
+
+        if name == 'ConstantValue':
+            value_index = self._read_byte2()
+            return name_index, length, value_index
+        elif name == 'Code':
+            max_stack = self._read_byte2()
+            max_locals = self._read_byte2()
+            code_length = self._read_byte4()
+            code = [self._read_byte() for i in xrange(code_length)]
+            exception_table_length = self._read_byte2()
+            exceptions = []
+            for i in xrange(exception_table_length):
+                #start_pc, end_pc, handler_pc, catch_type
+                handler = [self._read_byte2() for x in xrange(4)]
+                exceptions.append(handler)
+
+            attributes = []
+            attribute_count = self._read_byte2()
+            for i in xrange(attribute_count):
+                attributes.append(self.parse_attribute())
+            return name, max_stack, max_locals, code, exceptions, attributes
+        elif name == 'StackMapTable':
+            num_entries = self._read_byte2()
+            stack_map_frames = []
+            for i in xrange(num_entries):
+                stack_map_frames.append(self.parse_stack_map_frame())
+            return name, stack_map_frames
+        else:
+            print 'Unknown attribute', name
+            for i in xrange(length):
+                self._read_byte()
+            return name,
+
+    def parse_stack_map_frame(self):
+        tag = self._read_byte()
+
+        # SAME
+        # frame has the same type
+        if 0 <= tag <= 63:
+            return 'SAME'
+        elif 64 <= tag <= 127:
+            verification_info = self.parse_verification_info()
+            offset_delta = tag - 64
+            return 'SAME_LOCALS_1_STACK_ITEM', offset_delta, verification_info
+        elif tag == 247:
+            offset_delta = self._read_byte2()
+            verification_info = self.parse_verification_info()
+            return 'SAME_LOCALS_1_STACK_ITEM_EXTENDED', offset_delta, verification_info
+        elif 248 <= tag <= 250:
+            offset_delta = 251 - tag
+            return 'CHOP', offset_delta
+        elif tag == 251:
+            offset_delta = self._read_byte2()
+            return 'SAME_FRAME_EXTENDED'
+        elif 252 <= tag <= 254:
+            offset_delta = self._read_byte2()
+            verification_info = []
+            for i in xrange(tag - 251):
+                verification_info.append(self.parse_verification_info())
+            return 'APPEND', offset_delta, verification_info()
+        elif tag == 255:
+            offset_delta = self._read_byte2()
+            number_of_locals = self._read_byte2()
+            locals_ = []
+            for i in xrange(number_of_locals):
+                locals_.append(self.parse_verification_info())
+            number_of_stack_items = self._read_byte2()
+            for i in xrange(number_of_stack_items):
+                locals_.append(self.parse_verification_info())
 
 
 
@@ -139,9 +231,16 @@ class ClassReader:
             value = value << 8 | ord(self.file_reader.read(1))
         return value
 
+    @property
+    def human_readable_constant_pool(self):
+        result = ''
+        for constant in self.constant_pool:
+            result += CONSTANT_POOL_NAMES[constant[0]-1] + ' ' + ' '.join(map(str, constant[1:])) +'\n'
+        return result
+
 if __name__ == '__main__':
     if len(sys.argv) != 2:
         print 'classreader.py <filename>.class'
         sys.exit(0)
     classreader = ClassReader(open(sys.argv[1]))
-    print classreader.constant_pool
+    print classreader.human_readable_constant_pool
