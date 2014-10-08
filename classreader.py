@@ -217,6 +217,13 @@ class ClassReader:
             for i in xrange(number_of_stack_items):
                 locals_.append(self.parse_verification_info())
 
+    def parse_verification_info(self):
+        tag = self._read_byte()
+        if tag in (ITEM_Top, ITEM_Integer, ITEM_Float, ITEM_Null, ITEM_UnitialisedThis, ITEM_Long, ITEM_Double):
+            return tag,
+        elif tag in (ITEM_Object, ITEM_Unitialised):
+            offset = self._read_byte2()
+            return tag, offset
 
 
     def _read_byte(self):

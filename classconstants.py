@@ -28,3 +28,15 @@ ACC_VOLATILE  = 0x0040
 ACC_TRANSIENT = 0x0080
 ACC_SYNTHETIC = 0x1000
 ACC_ENUM      = 0x4000
+
+ITEM_Top = 0
+ITEM_Integer = 1
+ITEM_Float = 2
+ITEM_Double = 3
+ITEM_Long = 4
+ITEM_Null = 5
+ITEM_UnitialisedThis = 6
+ITEM_Object = 7
+ITEM_Unitialised = 8
+
+ITEMS = ['Top', 'Integer', 'Float', 'Double', 'Long', 'Null', 'UnitialisedThis', 'Object', 'Unitialised']
