@@ -19,4 +19,6 @@ class DefaultClassLoader:
         else:
             raise Exception('class file not found')
 
-        return ClassReader(class_file).klass
+        klass = ClassReader(class_file).klass
+        klass.__str__()
+        return klass

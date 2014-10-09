@@ -22,12 +22,19 @@ class Interpreter:
         for interfaces in klass.interfaces:
             self.load_class(interfaces)
 
+        # run <init> method of class
+        self.run_method(klass, klass.get_method('<init>', '()V'))
+
         return klass
 
-
-    def run(self):
+    def start(self):
         klass = self.load_class(self.initial_class_name)
-        print klass.attributes
+
+        # run initial method
+        self.run_method(klass, klass.get_method('main', ''))
+
+    def run_method(self, klass, method):
+        pass
 
 
 
@@ -37,4 +44,4 @@ if __name__ == '__main__':
         sys.exit(0)
     initial_class = sys.argv[1]
     interpreter = Interpreter(initial_class)
-    interpreter.run()
+    interpreter.start()

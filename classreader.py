@@ -1,6 +1,7 @@
 import sys
 
 from classconstants import *
+from classtypes import *
 from constantpool import ConstantPool
 from klass import Class
 
@@ -165,7 +166,7 @@ class ClassReader:
 
         name = self.klass.constant_pool.get_string(name_index)
         descriptor = self.klass.constant_pool.get_string(descriptor_index)
-        return access_flags, name, descriptor, attributes
+        return Field(access_flags, name, descriptor, attributes)
 
     def parse_attribute(self):
         name_index = self._read_byte2()
@@ -176,7 +177,7 @@ class ClassReader:
         if name == 'ConstantValue':
             value_index = self._read_byte2()
             value = self.klass.constant_pool.get_object(value_index)
-            return name, length, value
+            return ConstantValueAttribute(length, value)
         elif name == 'Code':
             max_stack = self._read_byte2()
             max_locals = self._read_byte2()
@@ -193,19 +194,19 @@ class ClassReader:
             attribute_count = self._read_byte2()
             for i in xrange(attribute_count):
                 attributes.append(self.parse_attribute())
-            return name, max_stack, max_locals, code, exceptions, attributes
+            return CodeAttribute(max_stack, max_locals, code, exceptions, attributes)
         elif name == 'StackMapTable':
             num_entries = self._read_byte2()
             stack_map_frames = []
             for i in xrange(num_entries):
                 stack_map_frames.append(self.parse_stack_map_frame())
-            return name, stack_map_frames
+            return StackMapTableAttribute(stack_map_frames)
         elif name == 'Exceptions':
             num_exceptions = self._read_byte2()
             exception_indexes = []
             for i in xrange(num_exceptions):
                 exception_indexes.append(self.read_byte2())
-            return nae, exception_indexes
+            return ExceptionsAttribute(exception_indexes)
         elif name == 'InnerClasses':
             num_classes = self._read_byte2()
             inner_classes = []
@@ -218,36 +219,39 @@ class ClassReader:
                 inner_class = self.klass.constant_pool.get_class(inner_class_info_index)
                 outer_class = self.klass.constant_pool.get_class(outer_class_info_index)
                 inner_name = self.klass.constant_pool.get_string(inner_name_index)
-                inner_classes.append((inner_class, outer_class, inner_name, inner_class_access_flags))
-            return name, inner_classes
+                inner_classes.append(InnerClass(inner_class, outer_class, inner_name, inner_class_access_flags))
+            return InnerClassesAttribute(inner_classes)
         elif name == 'EnclosingMethod':
             class_index = self._read_byte2()
             method_index = self._read_byte2()
             classs = self.klass.constant_pool.get_class(class_index)
-            return name, classs, method_index
+            return EnclosingMethodAttribute(classs, method_index)
         elif name == 'Synthetic':
-            return name,
+            return SyntheticAttribute()
         elif name == 'Signature':
             signature_index = self._read_byte2()
-            return name, signature_index
+            return SignatureAttribute(signature_index)
         elif name == 'SourceFile':
             source_file_index = self._read_byte2()
             source_file = self.klass.constant_pool.get_string(source_file_index)
-            return name, source_file
+            return SourceFileAttribute(source_file)
         elif name == 'LineNumberTable':
             length = self._read_byte2()
             line_table = []
             for i in xrange(length):
                 start_pc, line_number = self._read_byte2(), self._read_byte2()
                 line_table.append((start_pc, line_number))
-            return name, line_table
+            return LineNumberTableAttribute(line_table)
         elif name in ('RuntimeVisibleAnnotations', 'RuntimeInvisibleAnnotations'):
             num_annotations = self._read_byte2()
             annotations = []
             for i in xrange(num_annotations):
                 annotations.append(self.parse_annotation())
 
-            return name, type_index, annotations
+            if name == 'RuntimeVisibleAnnotations':
+                return RuntimeVisibleAnnotations(type_index, annotations)
+            elif name == 'RuntimeInvisibleAnnotations':
+                return RuntimeInvisibleAnnotations(type_index, annotations)
         elif name in ('RuntimeVisibleParameterAnnotations', 'RuntimeInvisibleParameterAnnotations'):
             num_parameters = self._read_byte()
             parameters = []
@@ -257,21 +261,26 @@ class ClassReader:
                 for i in xrange(num_annotations):
                     annotations.append(self.parse_annotation())
                 parameters.append(annotations)
-            return name, parameters
+            if name == 'RuntimeVisibleParameterAnnotations':
+                return RuntimeVisibleParameterAnnotations(parameters)
+            else:
+                return RuntimeInvisibleParameterAnnotations(parameters)
         elif name in ('RuntimeVisibleTypeAnnotations', 'RuntimeInvisibleTypeAnnotations'):
             num_annotations = self._read_byte2()
             type_annotations = []
             for i in xrange(num_annotations):
                 type_annotations.append(self.parse_type_annotation())
-            return name, type_annotations
+            if name == 'RuntimeVisibleTypeAnnotations':
+                return RuntimeVisibleTypeAnnotations(type_annotations)
+            else:
+                return RuntimeInvisibleTypeAnnotations(type_annotations)
         elif name == 'AnnotationDefault':
             attribute_name_index = self._read_byte2()
             attribute_name_length = self._read_byte4()
             default_value = self.parse_element_value()
 
-
             attribute_name = self.klass.constant_pool.get_string(attribute_name_index)
-            return name, attribute_name, attribute_name_length, default_value
+            return AnnotationDefaultAttribute(attribute_name, attribute_name_length, default_value)
         elif name == 'BootstapMethods':
             num_bootstrap_methods = self._read_byte2()
             bootstrap_methods = []
@@ -282,7 +291,7 @@ class ClassReader:
                 for j in xrange(num_bootstrap_arguments):
                     arguments.append(self._read_byte2())
                 bootstrap_methods.append(bootstrap_method_ref, arguments)
-            return name, bootstrap_methods
+            return BootstapMethodsAttribute(bootstrap_methods)
         elif name == 'MethodParameters':
             parameters_count = self._read_byte()
             parameters = []
@@ -290,7 +299,7 @@ class ClassReader:
                 name_index, access_flags = self._read_byte2(), self._read_byte2()
                 name = self.klass.constant_pool.get_string(name_index)
                 parameters.append((name, access_flags))
-            return name, parameters
+            return MethodParametersAttribute(parameters)
         else:
             print 'Unknown attribute', name
             for i in xrange(length):
@@ -385,7 +394,7 @@ class ClassReader:
         type_path = self.parse_type_path()
         type_index = self._read_byte2()
         element_values = self.parse_element_value_pairs()
-        return target_type, type_path, type_index, element_values
+        return TypeAnnotation(target_type, type_path, type_index, element_values)
 
     def parse_target_type(self):
         target_type = self._read_byte()
@@ -460,7 +469,7 @@ class ClassReader:
         for i in xrange(attributes_count):
             attributes.append(self.parse_attribute())
 
-        return 'method', access_flags, name, descriptor, attributes
+        return Method(access_flags, name, descriptor, attributes)
 
 
     def _read_byte(self):

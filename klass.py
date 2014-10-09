@@ -21,3 +21,13 @@ class Class:
         self.methods = []
         self.attributes = []
 
+    def get_method(self, method_name, type_signature):
+        for method in self.methods:
+            if method[2] == method_name:
+                return method
+
+    def __str__(self):
+        print self.constant_pool
+        print self.fields
+        print self.methods
+        print self.attributes
