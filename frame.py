@@ -1,8 +1,11 @@
+class StackOverflowException(Exception):
+    pass
+
 class Frame:
     operand_stack = None
     local_variables = None
 
-    def __init__(self, this=None, parameters=[], max_stack=0, max_locals=0):
+    def __init__(self, this=None, parameters=[], max_stack=1, max_locals=0):
         self.stack = []
         self.local_variables = [None] * max_locals
         i=0
@@ -17,7 +20,9 @@ class Frame:
 
     def push(self, value):
         self.stack.append(value)
-        assert len(self.stack) <= self.max_stack
+        if len(self.stack) > self.max_stack:
+            print self.stack
+            raise StackOverflowException('%s > %d' % (len(self.stack), self.max_stack))
 
     def pop(self):
         return self.stack.pop()

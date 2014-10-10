@@ -22,5 +22,5 @@ class DefaultClassLoader:
         else:
             raise Exception('class file not found: %s' % classname)
 
-        klass = ClassReader(class_file).klass
+        klass = ClassReader(classname, class_file).klass
         return klass

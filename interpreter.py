@@ -11,6 +11,7 @@ class Interpreter:
 
     def start(self):
         klass = self.vm.load_class(self.initial_class_name)
+        self.vm.stack[0].push('java')
 
         # run initial method
         self.vm.run_method(klass, klass.get_method('main', ''))

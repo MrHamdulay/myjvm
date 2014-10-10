@@ -10,8 +10,8 @@ class MalformedClassException(Exception):
 
 class ClassReader:
     file_reader = None
-    def __init__(self, filereader):
-        self.klass = Class()
+    def __init__(self, classname, filereader):
+        self.klass = Class(classname)
         self.file_reader = filereader
         self.parse()
 

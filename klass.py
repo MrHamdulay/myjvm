@@ -4,7 +4,11 @@ from classtypes import CodeAttribute, Method
 class NoSuchMethodException(Exception):
     pass
 
+EMPTY_METHOD = Method(0, '', '()V', [CodeAttribute(0, 0, [], [], [])])
+
 class Class:
+    name = None
+
     major_version = None
     minor_version = None
 
@@ -18,7 +22,8 @@ class Class:
     methods = None
     attributes = None
 
-    def __init__(self):
+    def __init__(self, name=None):
+        self.name = name if name else self.__class__.__name__
         self.constant_pool = ConstantPool()
         self.interfaces = []
         self.fields = []
@@ -29,7 +34,7 @@ class Class:
         for method in self.methods:
             if method.name == method_name:
                 return method
-        raise NoSuchMethodException('No such method')
+        raise NoSuchMethodException('No such method %s (%s)' % (method_name, type_signature) )
 
     def print_(self):
         print self.constant_pool
@@ -38,16 +43,21 @@ class Class:
         print self.methods
         print self.attributes
 
+
 class NativeClass(Class):
     native_methods = {}
     def get_method(self, method_name, type_signature):
+        if method_name == '<init>':
+            return EMPTY_METHOD
         try:
             return self.native_methods[method_name]
         except KeyError:
-            raise NoSuchMethodException()
+            raise NoSuchMethodException('No such method %s (%s)' % (method_name, type_signature) )
 
 class ClassInstance:
-    def __init__(self, klass):
+    def __init__(self, klass_name, klass):
+        self.klass = klass
+        self.klass_name = klass_name
         self.values = {}
 
     def putfield(self, field, value):
@@ -55,3 +65,6 @@ class ClassInstance:
 
     def getfield(self, field):
         return self.values[field]
+
+    def __repr__(self):
+        return '<Instance of %s>' % self.klass_name
