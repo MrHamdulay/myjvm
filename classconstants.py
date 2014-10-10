@@ -15,8 +15,37 @@ CONSTANT_MethodHandle = 15
 CONSTANT_MethodType = 16
 CONSTANT_InvokeDynamic = 18
 
-CONSTANT_POOL_NAMES = ['Utf8', 'Integer', 'Float', 'Long', 'Double', 'Class', 'String', 'Fieldref', 'Methodref',
-                        'InterfaceMethodref', 'NameAndType', 'MethodHandle', 'MethodType', 'InvokeDynamic']
+CONSTANT_POOL_NAMES = [
+#1
+'Utf8',
+#2
+'',
+#3
+'Integer',
+#4
+'Float',
+#5
+'Long',
+#6
+'Double',
+#7
+'Class',
+#8
+'String',
+#9
+'Fieldref',
+#10
+'Methodref',
+#11
+'InterfaceMethodref',
+#12
+'NameAndType',
+#13
+'MethodHandle',
+#14
+'MethodType',
+#15
+'InvokeDynamic']
 
 
 ACC_PUBLIC    = 0x0001

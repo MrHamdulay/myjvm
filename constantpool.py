@@ -11,19 +11,29 @@ class ConstantPool:
         self.constant_pool.append(*args)
 
     def get_string(self, index):
-        constant = self.constant_pool[index-1]
-        if constant[0] != CONSTANT_Utf8:
-            raise ConstantPoolException('Expected UTF8 got %s %s' % (CONSTANT_POOL_NAMES[constant[0]-1], constant[1:]))
-        return constant[1]
+        return self.get_object(CONSTANT_Utf8, index)[0]
 
     def get_class(self, index):
-        constant = self.constant_pool[index-1]
-        if constant[0] != CONSTANT_Class:
-            raise ConstantPoolException('Expected Class got %s %s' % (CONSTANT_POOL_NAMES[constant[0]-1], constant[1:]))
-        return self.get_string(constant[1])
+        klass = self.get_object(CONSTANT_Class, index)
+        return self.get_string(klass[0])
 
-    def get_object(self, index):
-        return self.constant_pool[index-1][1]
+    def get_name_and_type(self, index):
+        name_and_type = self.get_object(CONSTANT_NameAndType, index)
+        return self.get_string(name_and_type[0]), self.get_string(name_and_type[1])
+
+
+    def get_method(self, index):
+        methodref = self.get_object(CONSTANT_Methodref, index)
+
+        klass_descriptor = self.get_class(methodref[0])
+        name, type_ = self.get_name_and_type(methodref[1])
+        return klass_descriptor, name, type_
+
+    def get_object(self, type, index):
+        constant = self.constant_pool[index-1]
+        if type != constant[0] and type != 0:
+            raise ConstantPoolException('Expected %s got %s(%d) %s' % (CONSTANT_POOL_NAMES[type-1], CONSTANT_POOL_NAMES[constant[0]-1], type, constant[1:]))
+        return constant[1:]
 
     def __repr__(self):
         result = ''

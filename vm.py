@@ -1,7 +1,7 @@
 from utils import get_attribute
 from defaultclassloader import DefaultClassLoader
 from frame import Frame
-from klass import NoSuchMethodException
+from klass import NoSuchMethodException, ClassInstance
 from classconstants import ACC_STATIC
 
 null = object()
@@ -50,14 +50,17 @@ class VM:
         frame = Frame(this=this, max_stack=code.max_stack, max_locals=code.max_locals)
         self.stack.append(frame)
 
-        return_value = self.run_bytecode(method, code.code, frame)
+        return_value = self.run_bytecode(klass, method, code.code, frame)
 
         # TODO: check for frame return value somehow
 
         self.stack.pop()
         return return_value
 
-    def run_bytecode(self, method, bytecode, frame):
+    def constant_pool_index(self, bytecode, index):
+        return (bytecode[index+1]<<8) | (bytecode[index+2])
+
+    def run_bytecode(self, current_klass, method, bytecode, frame):
         pc = 0
         while pc < len(bytecode):
             bc = bytecode[pc]
@@ -71,11 +74,29 @@ class VM:
             elif 42 <= bc <= 45:
                 n = 45 - bc
                 frame.stack.push(frame.local_variables[n])
+            # dup
+            elif bc == 89:
+                frame.push(frame.stack[-1])
             # return
             elif bc == 177:
                 # TODO: parse out the return type and assert void
                 # TODO: if synchronized method exit the monitor
                 return void
+            # invokespecial
+            elif bc == 183:
+                method_index = self.constant_pool_index(bytecode, pc)
+                pc += 2
+                klass_descriptor, method_name, method_descriptor = current_klass.constant_pool.get_method(method_index)
+                print klass_descriptor, method_name, method_descriptor
+                raise Exception
+
+            # new
+            elif bc == 187:
+                klass_index = self.constant_pool_index(bytecode, pc)
+                pc += 2
+                klass = current_klass.constant_pool.get_class(klass_index)
+                instance = ClassInstance(klass)
+                frame.push(instance)
             else:
                 raise Exception('Unknown bytecode: %d' % bytecode[pc])
             pc += 1
