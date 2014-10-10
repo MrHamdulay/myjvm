@@ -1,4 +1,5 @@
 import sys
+import logging
 import os.path
 
 from classreader import ClassReader
@@ -19,6 +20,7 @@ class Interpreter:
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     if len(sys.argv) != 2:
         print 'Usage: interpreter.py <class>'
         sys.exit(0)
