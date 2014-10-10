@@ -1,52 +1,27 @@
-import ply.yacc as yacc
-import ply.lex as lex
+NORMAL = 1
+PARAMETERS = 2
 
-class DescriptorTokenizer(object):
-    literals = '[VBCDFIJSZ();{}'
-    tokens = ['klassname']
-    t_klassname = r'(<(cl)?init>|[a-zA-Z]+(/[a-zA-Z]+)*)'
+class MalformedDescriptorException(Exception):
+    pass
 
-class DescriptorParser(object):
-    tokens = ['klassname']
+def parse_descriptor(string, mode=NORMAL):
+    result = []
+    index = 0
+    while index < len(string):
+        if string[index] == '(' and mode == NORMAL:
+            result.append(parse_descriptor(string[index+1:string.find(')', index)], PARAMETERS))
+            index = string.find(')', index)+1
+        elif string[index] in 'BCDFIJSZV':
+            result.append(string[index])
+            index +=1
+        elif string[index] == 'L':
+            result.append(string[index+1:string.find(';', index+1)])
+            index = string.find(';', index+1)+1
 
-    def p_fielddescriptor(self, p):
-        'fielddescriptor: fieldtype'
-        p[0] = p[1]
+    if mode == NORMAL and len(result) not in (1, 2):
+        raise MalformedDescriptorException()
 
-    def p_fieldtype(self, p):
-        'fieldtype : basetype | objecttype | arraytype'
-        p[0] = p[1]
+    return result
 
-    def p_basetype(self, p):
-        '''basetype : 'B' | 'C' | 'D' | 'F' | 'I' | 'J' | 'S' | 'Z' '''
-        p[0] = p[1]
-
-    def p_objecttype(self, p):
-        ''' objecttype : 'L' klassname ';' '''
-        p[0] = p[2]
-
-    def p_arraytype(self, p):
-        ''' arraytype: '[' componenttype '''
-        p[0] = p[2]
-
-    def p_componenttype(self, p):
-        ''' componenttype: fieldtype '''
-        p[0] = p[1]
-
-    def p_methoddescriptor(self, p):
-        ''' methoddescriptor : '(' parameterlist ')' returndescriptor '''
-        p[0] = p[2], p[4]
-
-    def p_parameterlist(self, p):
-        ' parameterlist : fieldtype parameterlist | fieldtype '
-        p[0] = [p[1]] + ([] if len(p) == 2 else p[2])
-
-    def p_returndescriptor(self, p):
-        ''' returndescriptor : 'V' | fieldtype '''
-        p[0] = p[1]
-
-lexer = lex.lex(module=DescriptorTokenizer())
-parser = yacc.yacc(module=DescriptorParser())
-
-def parse_descriptor(string):
-    return parser.parse(string, lexer=lexer, debug=0)
+if __name__ == '__main__':
+    print parse_descriptor('(IDLjava/lang/Thread;)Ljava/lang/Object;')
