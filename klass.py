@@ -1,10 +1,11 @@
 from constantpool import ConstantPool
 from classtypes import CodeAttribute, Method
+from classconstants import ACC_STATIC
 
 class NoSuchMethodException(Exception):
     pass
 
-EMPTY_METHOD = Method(0, '', '()V', [CodeAttribute(0, 0, [], [], [])])
+EMPTY_METHOD = Method(ACC_STATIC, '', '()V', [CodeAttribute(0, 0, [], [], [])])
 
 class Class:
     name = None

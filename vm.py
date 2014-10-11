@@ -7,8 +7,8 @@ from klass import NoSuchMethodException, ClassInstance
 from classconstants import ACC_STATIC
 from descriptor import parse_descriptor
 
-null = object()
-void = object()
+null = 'null', object()
+void = 'void', object()
 
 class VM:
     def __init__(self, classpath=[]):
@@ -47,18 +47,21 @@ class VM:
         # yup, our stack has infinite depth. Contains only frames
         code = get_attribute(method, 'Code')
 
-        if method.access_flags | ACC_STATIC:
-            this = None
-        else:
-            this = None
-        frame = Frame(this=this, max_stack=code.max_stack, max_locals=code.max_locals)
+        #print self.stack[-1].stack
+        frame = Frame(max_stack=code.max_stack, max_locals=code.max_locals)
+        locals_index=0
+        if (method.access_flags & ACC_STATIC ) == 0:
+            # method is not static so load instance
+            frame.insert_local(locals_index, self.stack[-1].pop())
+            locals_index+=1
 
         # parse argument list and return type
         method_arguments, method_return_type = parse_descriptor(method.descriptor)
         # read arguments into stack
-        for i, arg_type in enumerate(method_arguments):
+        for arg_type in method_arguments:
             arg = self.stack[-1].pop()
-            frame.insert_local(i+1, arg)
+            frame.insert_local(locals_index, arg)
+            locals_index +=1
         self.stack.append(frame)
 
         return_value = self.run_bytecode(klass, method, code.code, frame)
@@ -69,6 +72,9 @@ class VM:
         # if it's a non-void method put return value on top of stack
         if method_return_type != 'V':
             self.stack[-1].push(return_value)
+        else:
+            print return_value
+            assert return_value is void
         return return_value
 
     def constant_pool_index(self, bytecode, index):
@@ -78,18 +84,23 @@ class VM:
         pc = 0
         while pc < len(bytecode):
             bc = bytecode[pc]
+            logging.debug('bytecode %d'  % bc)
             # iconst_<n>
             if 2 <= bc <= 8:
                 logging.debug( 'iconst')
                 frame.push(bc-2-1)
+            elif bc == 16:
+                logging.debug('bipush')
+                frame.push(bytecode[pc+1])
+                pc+=1
             # istore_<n>
             elif 59 <= bc <= 62:
                 logging.debug( 'istore')
                 frame.insert_local(bc - 59, frame.pop())
             # aload_<n>
             elif 42 <= bc <= 45:
-                logging.debug( 'aload')
                 n = bc - 42
+                logging.debug( 'aload %d' % n)
                 frame.push(frame.local_variables[n])
             # astore_<n>
             elif 75 <= bc <= 78:
@@ -101,6 +112,11 @@ class VM:
             elif bc == 89:
                 logging.debug( 'dup')
                 frame.push(frame.stack[-1])
+            elif bc == 172:
+                logging.debug('ireturn')
+                return_value = int(frame.pop())
+                assert not frame.stack
+                return return_value
             # return
             elif bc == 177:
                 logging.debug( 'return')
@@ -130,4 +146,4 @@ class VM:
             else:
                 raise Exception('Unknown bytecode: %d' % bytecode[pc])
             pc += 1
-
+        return void

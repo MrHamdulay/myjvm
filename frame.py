@@ -19,6 +19,7 @@ class Frame:
         self.max_locals=max_locals
 
     def push(self, value):
+        assert value is not None
         self.stack.append(value)
         if len(self.stack) > self.max_stack:
             print self.stack
