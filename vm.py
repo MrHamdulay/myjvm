@@ -93,6 +93,10 @@ class VM:
                 logging.debug('bipush')
                 frame.push(bytecode[pc+1])
                 pc+=1
+            elif 26 <= bc <= 29:
+                n = bc - 26
+                logging.debug('iload_%d' % n)
+                frame.push(frame.get_local(n))
             # istore_<n>
             elif 59 <= bc <= 62:
                 logging.debug( 'istore')
