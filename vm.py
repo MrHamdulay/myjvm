@@ -39,8 +39,6 @@ class VM:
         except NoSuchMethodException:
             pass
 
-        print 'fields', klass.fields
-
         return klass
 
     def run_method(self, klass, method):
@@ -83,7 +81,8 @@ class VM:
 
     def resolve_field(self, current_klass, ref_index):
         field_type, field  = current_klass.constant_pool.get_object(0, ref_index)
-        print field
+        if field_type == 'String':
+            return current_klass.constant_pool.get_string(field[0])
         klass_descriptor = current_klass.constant_pool.get_class(field[0])
         field_name, field_descriptor = current_klass.constant_pool.get_name_and_type(field[1])
         klass = self.load_class(klass_descriptor)

@@ -43,11 +43,13 @@ class ClassReader:
 
         field_length = self._read_byte2()
         for i in xrange(field_length):
-            klass.fields.append(self.parse_field())
+            field = self.parse_field()
+            klass.fields[field.name] = field
 
         method_count = self._read_byte2()
         for i in xrange(method_count):
-            klass.methods.append(self.parse_method())
+            method = self.parse_method()
+            klass.methods[method.name] = method
 
         attribute_count = self._read_byte2()
         for i in xrange(attribute_count):

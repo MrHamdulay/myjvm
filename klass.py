@@ -7,7 +7,7 @@ class NoSuchMethodException(Exception):
 
 EMPTY_METHOD = Method(ACC_STATIC, '', '()V', [CodeAttribute(0, 0, [], [], [])])
 
-class Class:
+class Class(object):
     name = None
 
     major_version = None
@@ -27,15 +27,17 @@ class Class:
         self.name = name if name else self.__class__.__name__
         self.constant_pool = ConstantPool()
         self.interfaces = []
-        self.fields = []
-        self.methods = []
+        self.fields = {}
+        self.methods = {}
         self.attributes = []
 
     def get_method(self, method_name, type_signature):
-        for method in self.methods:
-            if method.name == method_name:
-                return method
+        if method_name in self.methods:
+            return self.methods[method_name]
         raise NoSuchMethodException('No such method %s (%s)' % (method_name, type_signature) )
+
+    def instantiate(self):
+        return ClassInstance(self.method_name, self)
 
     def print_(self):
         print self.constant_pool
@@ -55,17 +57,34 @@ class NativeClass(Class):
         except KeyError:
             raise NoSuchMethodException('No such method %s (%s)' % (method_name, type_signature) )
 
-class ClassInstance:
+class ClassInstance(object):
+    _klass = None
+    _klass_name = None
+    _values = None
+
     def __init__(self, klass_name, klass):
-        self.klass = klass
-        self.klass_name = klass_name
-        self.values = {}
+        self._values = {}
+        self._klass = klass
+        self._klass_name = klass_name
 
-    def putfield(self, field, value):
-        self.values[field] = value
+    def __getattr__(self, name):
+        if name in self.__dict__:
+            return self.__dict__[name]
+        if name in  self._values:
+            return self._values[name]
+        if name in self._klass.methods:
+            return self._klass.methods[name]
+        raise Exception
 
-    def getfield(self, field):
-        return self.values[field]
+    def __setattr__(self, name, value):
+        if name in self.__dict__ or name[0] == '_':
+            self.__dict__[name] = value
+            return
+
+        # TODO: check the type in the parent class
+
+        self._values[name] = value
+        pass
 
     def __repr__(self):
-        return '<Instance of %s>' % self.klass_name
+        return '<Instance of %s>' % self._klass_name
