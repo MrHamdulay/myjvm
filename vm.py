@@ -79,8 +79,10 @@ class VM:
     def constant_pool_index(self, bytecode, index):
         return (bytecode[index+1]<<8) | (bytecode[index+2])
 
-    def resolve_field(self, current_klass, ref_index):
+    def resolve_field(self, current_klass, ref_index, expected_field_types=None):
         field_type, field  = current_klass.constant_pool.get_object(0, ref_index)
+        if expected_field_types:
+            assert field_type in expected_field_types
         if field_type == 'String':
             return current_klass.constant_pool.get_string(field[0])
         klass_descriptor = current_klass.constant_pool.get_class(field[0])
@@ -88,6 +90,8 @@ class VM:
         klass = self.load_class(klass_descriptor)
         if field_type == 'Methodref':
             return klass, klass.get_method(field_name, field_descriptor)
+        elif field_type == 'Fieldref':
+            return field_name, field_descriptor
         else:
             raise Exception('unknown field type %s' % field_type)
 
@@ -159,6 +163,14 @@ class VM:
                 ref_index = self.constant_pool_index(bytecode, pc)
                 field = self.resolve_field(current_klass, ref_index)
                 frame.push(field)
+            elif bc == 181:
+                logging.debug('putfield')
+                field_index = self.constant_pool_index(bytecode, pc)
+                field_name, field_descriptor = self.resolve_field(current_klass,
+                        field_index, 'Fieldref')
+                value, objectref = frame.pop(), frame.pop()
+                assert isinstance(objectref, ClassInstance)
+                objectref.__setattr__(field_name, value)
             # invokespecial / virtual
             elif bc in (182, 183):
                 if bc == 182: logging.debug('invokevirtual')
