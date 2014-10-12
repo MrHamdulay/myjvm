@@ -166,6 +166,7 @@ class VM:
             elif bc == 181:
                 logging.debug('putfield')
                 field_index = self.constant_pool_index(bytecode, pc)
+                pc += 2
                 field_name, field_descriptor = self.resolve_field(current_klass,
                         field_index, 'Fieldref')
                 value, objectref = frame.pop(), frame.pop()
@@ -190,6 +191,6 @@ class VM:
                 instance = ClassInstance(klass_name, klass)
                 frame.push(instance)
             else:
-                raise Exception('Unknown bytecode: %d' % bytecode[pc])
+                raise Exception('Unknown bytecode in class %s.%s: %d' % (klass.name, method.name, bytecode[pc]))
             pc += 1
         return void
