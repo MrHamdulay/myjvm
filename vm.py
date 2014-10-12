@@ -10,6 +10,18 @@ from descriptor import parse_descriptor
 null = 'null', object()
 void = 'void', object()
 
+bytecodes = {}
+def register_bytecode(start, end=-1):
+    def decorator(f):
+        if decorator.end == -1:
+            decorator.end = decorator.start+1
+        for i in xrange(decorator.start, decorator.end+1):
+            bytecodes[i] = (decorator.start, f)
+        return f
+    decorator.start = start
+    decorator.end = end
+    return decorator
+
 class VM:
     def __init__(self, classpath=[]):
         self.class_cache = {}
@@ -95,6 +107,7 @@ class VM:
         else:
             raise Exception('unknown field type %s' % field_type)
 
+
     def run_bytecode(self, current_klass, method, bytecode, frame):
         pc = 0
         while pc < len(bytecode):
@@ -102,62 +115,18 @@ class VM:
             print frame.stack
             bc = bytecode[pc]
             logging.debug('bytecode %d'  % bc)
-            # iconst_<n>
-            if 2 <= bc <= 8:
-                logging.debug( 'iconst')
-                frame.push(bc-2-1)
-            elif bc == 16:
-                logging.debug('bipush')
-                frame.push(bytecode[pc+1])
-                pc+=1
-            elif bc == 18:
-                logging.debug('ldc')
-                constant_pool_index = bytecode[pc+1]
-                pc += 1
-                field = self.resolve_field(current_klass, constant_pool_index)
-                frame.push(field)
-            elif 26 <= bc <= 29:
-                n = bc - 26
-                logging.debug('iload_%d' % n)
-                frame.push(frame.get_local(n))
-            # istore_<n>
-            elif 59 <= bc <= 62:
-                logging.debug( 'istore')
-                frame.insert_local(bc - 59, frame.pop())
-            # aload_<n>
-            elif 42 <= bc <= 45:
-                n = bc - 42
-                logging.debug( 'aload %d' % n)
-                frame.push(frame.local_variables[n])
-            # astore_<n>
-            elif 75 <= bc <= 78:
-                logging.debug('astore')
-                reference = frame.pop()
-                assert isinstance(reference, ClassInstance)
-                frame.insert_local(bc-75, reference)
-            # dup
-            elif bc == 89:
-                logging.debug( 'dup')
-                frame.push(frame.stack[-1])
-            elif bc == 96:
-                logging.debug('iadd')
-                frame.push(int(frame.pop())+int(frame.pop()))
-            elif bc == 167:
-                logging.debug('goto')
-                pc = self.constant_pool_index(bytecode, pc)
-                logging.debug('moving pc to %d' % pc)
+            if bc in bytecodes:
+                start, bytecode_function = bytecodes[bc]
+                logging.debug('calling bytecode %s' % bytecode_function.__name__)
+                print pc
+                ret = bytecode_function(self, current_klass, method, frame, bc - start, bytecode, pc)
+                if ret:
+                    pc = ret
+                else:
+                    pc += 1
+                if frame.return_value:
+                    return frame.return_value
                 continue
-            elif bc == 172:
-                logging.debug('ireturn')
-                return_value = int(frame.pop())
-                assert not frame.stack
-                return return_value
-            # return
-            elif bc == 177:
-                logging.debug( 'return')
-                # TODO: parse out the return type and assert void
-                # TODO: if synchronized method exit the monitor
-                return void
             elif bc == 178:
                 logging.debug('getstatic')
                 ref_index = self.constant_pool_index(bytecode, pc)
@@ -194,3 +163,5 @@ class VM:
                 raise Exception('Unknown bytecode in class %s.%s: %d' % (klass.name, method.name, bytecode[pc]))
             pc += 1
         return void
+
+import bytecode

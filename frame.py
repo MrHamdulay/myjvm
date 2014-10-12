@@ -8,6 +8,7 @@ class Frame:
     def __init__(self, this=None, parameters=[], max_stack=1, max_locals=0):
         self.stack = []
         self.local_variables = [None] * max_locals
+        self.return_value = None
         i=0
         if this:
             self.local_variables[i] = this
