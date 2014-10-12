@@ -4,7 +4,7 @@ from utils import get_attribute
 from defaultclassloader import DefaultClassLoader
 from frame import Frame
 from klass import NoSuchMethodException, ClassInstance
-from classconstants import ACC_STATIC
+from classconstants import *
 from descriptor import parse_descriptor
 
 null = 'null', object()
@@ -38,6 +38,8 @@ class VM:
             self.run_method(klass, klass.get_method('<clinit>', '()V'))
         except NoSuchMethodException:
             pass
+
+        print 'fields', klass.fields
 
         return klass
 
@@ -73,16 +75,28 @@ class VM:
         if method_return_type != 'V':
             self.stack[-1].push(return_value)
         else:
-            print return_value
             assert return_value is void
         return return_value
 
     def constant_pool_index(self, bytecode, index):
         return (bytecode[index+1]<<8) | (bytecode[index+2])
 
+    def resolve_field(self, current_klass, ref_index):
+        field_type, field  = current_klass.constant_pool.get_object(0, ref_index)
+        print field
+        klass_descriptor = current_klass.constant_pool.get_class(field[0])
+        field_name, field_descriptor = current_klass.constant_pool.get_name_and_type(field[1])
+        klass = self.load_class(klass_descriptor)
+        if field_type == 'Methodref':
+            return klass, klass.get_method(field_name, field_descriptor)
+        else:
+            raise Exception('unknown field type %s' % field_type)
+
     def run_bytecode(self, current_klass, method, bytecode, frame):
         pc = 0
         while pc < len(bytecode):
+            print method.name, method.descriptor
+            print frame.stack
             bc = bytecode[pc]
             logging.debug('bytecode %d'  % bc)
             # iconst_<n>
@@ -93,6 +107,12 @@ class VM:
                 logging.debug('bipush')
                 frame.push(bytecode[pc+1])
                 pc+=1
+            elif bc == 18:
+                logging.debug('ldc')
+                constant_pool_index = bytecode[pc+1]
+                pc += 1
+                field = self.resolve_field(current_klass, constant_pool_index)
+                frame.push(field)
             elif 26 <= bc <= 29:
                 n = bc - 26
                 logging.debug('iload_%d' % n)
@@ -116,6 +136,14 @@ class VM:
             elif bc == 89:
                 logging.debug( 'dup')
                 frame.push(frame.stack[-1])
+            elif bc == 96:
+                logging.debug('iadd')
+                frame.push(int(frame.pop())+int(frame.pop()))
+            elif bc == 167:
+                logging.debug('goto')
+                pc = self.constant_pool_index(bytecode, pc)
+                logging.debug('moving pc to %d' % pc)
+                continue
             elif bc == 172:
                 logging.debug('ireturn')
                 return_value = int(frame.pop())
@@ -127,15 +155,18 @@ class VM:
                 # TODO: parse out the return type and assert void
                 # TODO: if synchronized method exit the monitor
                 return void
+            elif bc == 178:
+                logging.debug('getstatic')
+                ref_index = self.constant_pool_index(bytecode, pc)
+                field = self.resolve_field(current_klass, ref_index)
+                frame.push(field)
             # invokespecial / virtual
             elif bc in (182, 183):
                 if bc == 182: logging.debug('invokevirtual')
                 if bc == 183: logging.debug( 'invokespecial')
                 method_index = self.constant_pool_index(bytecode, pc)
                 pc += 2
-                klass_descriptor, method_name, method_descriptor = current_klass.constant_pool.get_method(method_index)
-                klass = self.load_class(klass_descriptor)
-                method = klass.get_method(method_name, method_descriptor)
+                klass, method = self.resolve_field(current_klass, method_index)
                 self.run_method(klass, method)
 
             # new

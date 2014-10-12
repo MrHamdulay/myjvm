@@ -22,8 +22,8 @@ class ConstantPool:
         return self.get_string(name_and_type[0]), self.get_string(name_and_type[1])
 
 
-    def get_method(self, index):
-        methodref = self.get_object(CONSTANT_Methodref, index)
+    def get_method(self, index, type_tag=CONSTANT_Methodref):
+        methodref = self.get_object(type_tag, index)
 
         klass_descriptor = self.get_class(methodref[0])
         name, type_ = self.get_name_and_type(methodref[1])
@@ -33,6 +33,8 @@ class ConstantPool:
         constant = self.constant_pool[index-1]
         if type != constant[0] and type != 0:
             raise ConstantPoolException('Expected %s got %s(%d) %s' % (CONSTANT_POOL_NAMES[type-1], CONSTANT_POOL_NAMES[constant[0]-1], type, constant[1:]))
+        if type == 0:
+            return CONSTANT_POOL_NAMES[constant[0]-1], constant[1:]
         return constant[1:]
 
     def __repr__(self):
