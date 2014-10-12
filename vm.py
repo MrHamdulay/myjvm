@@ -14,8 +14,9 @@ bytecodes = {}
 def register_bytecode(start, end=-1):
     def decorator(f):
         if decorator.end == -1:
-            decorator.end = decorator.start+1
+            decorator.end = decorator.start
         for i in xrange(decorator.start, decorator.end+1):
+            assert i not in bytecodes
             bytecodes[i] = (decorator.start, f)
         return f
     decorator.start = start
@@ -112,56 +113,20 @@ class VM:
         pc = 0
         while pc < len(bytecode):
             print method.name, method.descriptor
-            print frame.stack
+            print 'stackframe', frame.stack
             bc = bytecode[pc]
             logging.debug('bytecode %d'  % bc)
             if bc in bytecodes:
                 start, bytecode_function = bytecodes[bc]
                 logging.debug('calling bytecode %s' % bytecode_function.__name__)
-                print pc
                 ret = bytecode_function(self, current_klass, method, frame, bc - start, bytecode, pc)
                 if ret:
                     pc = ret
-                else:
-                    pc += 1
+                pc += 1
                 if frame.return_value:
                     return frame.return_value
-                continue
-            elif bc == 178:
-                logging.debug('getstatic')
-                ref_index = self.constant_pool_index(bytecode, pc)
-                field = self.resolve_field(current_klass, ref_index)
-                frame.push(field)
-            elif bc == 181:
-                logging.debug('putfield')
-                field_index = self.constant_pool_index(bytecode, pc)
-                pc += 2
-                field_name, field_descriptor = self.resolve_field(current_klass,
-                        field_index, 'Fieldref')
-                value, objectref = frame.pop(), frame.pop()
-                assert isinstance(objectref, ClassInstance)
-                objectref.__setattr__(field_name, value)
-            # invokespecial / virtual
-            elif bc in (182, 183):
-                if bc == 182: logging.debug('invokevirtual')
-                if bc == 183: logging.debug( 'invokespecial')
-                method_index = self.constant_pool_index(bytecode, pc)
-                pc += 2
-                klass, method = self.resolve_field(current_klass, method_index)
-                self.run_method(klass, method)
-
-            # new
-            elif bc == 187:
-                logging.debug( 'new')
-                klass_index = self.constant_pool_index(bytecode, pc)
-                pc += 2
-                klass_name = current_klass.constant_pool.get_class(klass_index)
-                klass = self.load_class(klass_name)
-                instance = ClassInstance(klass_name, klass)
-                frame.push(instance)
             else:
-                raise Exception('Unknown bytecode in class %s.%s: %d' % (klass.name, method.name, bytecode[pc]))
-            pc += 1
+                raise Exception('Unknown bytecode in class %s.%s: %d' % (current_klass.name, method.name, bytecode[pc]))
         return void
 
 import bytecode
