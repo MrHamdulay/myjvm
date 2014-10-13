@@ -1,14 +1,10 @@
 import logging
 
-from utils import get_attribute
 from defaultclassloader import DefaultClassLoader
 from frame import Frame
 from klass import NoSuchMethodException, ClassInstance
 from classconstants import *
 from descriptor import parse_descriptor
-
-null = 'null', object()
-void = 'void', object()
 
 bytecodes = {}
 def register_bytecode(start, end=-1):
@@ -56,38 +52,8 @@ class VM:
 
     def run_method(self, klass, method):
         logging.debug('running method %s' %  str(method))
+        klass.run_method(self, method, method.descriptor)
 
-        # yup, our stack has infinite depth. Contains only frames
-        code = get_attribute(method, 'Code')
-
-        #print self.stack[-1].stack
-        frame = Frame(max_stack=code.max_stack, max_locals=code.max_locals)
-        locals_index=0
-        if (method.access_flags & ACC_STATIC ) == 0:
-            # method is not static so load instance
-            frame.insert_local(locals_index, self.stack[-1].pop())
-            locals_index+=1
-
-        # parse argument list and return type
-        method_arguments, method_return_type = parse_descriptor(method.descriptor)
-        # read arguments into stack
-        for arg_type in method_arguments:
-            arg = self.stack[-1].pop()
-            frame.insert_local(locals_index, arg)
-            locals_index +=1
-        self.stack.append(frame)
-
-        return_value = self.run_bytecode(klass, method, code.code, frame)
-
-        # TODO: check for frame return value somehow
-
-        self.stack.pop()
-        # if it's a non-void method put return value on top of stack
-        if method_return_type != 'V':
-            self.stack[-1].push(return_value)
-        else:
-            assert return_value is void
-        return return_value
 
     def constant_pool_index(self, bytecode, index):
         return (bytecode[index+1]<<8) | (bytecode[index+2])
@@ -112,10 +78,8 @@ class VM:
     def run_bytecode(self, current_klass, method, bytecode, frame):
         pc = 0
         while pc < len(bytecode):
-            print method.name, method.descriptor
             print 'stackframe', frame.stack
             bc = bytecode[pc]
-            logging.debug('bytecode %d'  % bc)
             if bc in bytecodes:
                 start, bytecode_function = bytecodes[bc]
                 logging.debug('calling bytecode %s' % bytecode_function.__name__)

@@ -69,3 +69,6 @@ ITEM_Object = 7
 ITEM_Unitialised = 8
 
 ITEMS = ['Top', 'Integer', 'Float', 'Double', 'Long', 'Null', 'UnitialisedThis', 'Object', 'Unitialised']
+
+null = 'null', object()
+void = 'void', object()
