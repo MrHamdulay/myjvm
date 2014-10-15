@@ -57,6 +57,7 @@ class ClassReader:
 
         # make sure we're at the end of our file
         assert not self.file_reader.read(1)
+        self.file_reader.close()
 
     def parse_constant_pool_item(self):
         tag = self._read_byte()

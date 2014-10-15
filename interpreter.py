@@ -11,6 +11,7 @@ class Interpreter:
         self.vm = VM(classpath)
 
     def start(self):
+        self.vm.class_loader.load_jar('klasses/rt.jar')
         klass = self.vm.load_class(self.initial_class_name)
         self.vm.stack[0].push('java')
 
