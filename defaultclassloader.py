@@ -25,10 +25,12 @@ class DefaultClassLoader:
         if classname in native_classes:
             return native_classes[classname]
 
-        if classname in self.lazy_classes:
-            classname = self.load_class_from_jar(classname)
+        class_file = None
 
-        if isinstance(classname, basestring):
+        if classname in self.lazy_classes:
+            class_file = self.load_class_from_jar(classname)
+        else:
+
             parts = classname.split('/')
 
             class_file = None
@@ -39,11 +41,8 @@ class DefaultClassLoader:
                     break
             else:
                 raise Exception('class file not found: %s' % classname)
-        elif hasattr(classname, 'read'):
-            # assume that this is a file object type
-            class_file = classname
-        else:
-            raise Exception
+
+        assert class_file is not None
 
         klass = ClassReader(classname, class_file).klass
         return klass
