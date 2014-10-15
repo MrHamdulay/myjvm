@@ -6,18 +6,7 @@ from klass import NoSuchMethodException, ClassInstance
 from classconstants import *
 from descriptor import parse_descriptor
 
-bytecodes = {}
-def register_bytecode(start, end=-1):
-    def decorator(f):
-        if decorator.end == -1:
-            decorator.end = decorator.start
-        for i in xrange(decorator.start, decorator.end+1):
-            assert i not in bytecodes
-            bytecodes[i] = (decorator.start, f)
-        return f
-    decorator.start = start
-    decorator.end = end
-    return decorator
+from bytecode import bytecodes
 
 class VM:
     def __init__(self, classpath=[]):
@@ -92,5 +81,3 @@ class VM:
             else:
                 raise Exception('Unknown bytecode in class %s.%s: %d' % (current_klass.name, method.name, bytecode[pc]))
         return void
-
-import bytecode

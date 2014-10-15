@@ -1,5 +1,18 @@
-from vm import register_bytecode, void, null
+from classconstants import void, null
 from klass import ClassInstance
+
+bytecodes = {}
+def register_bytecode(start, end=-1):
+    def decorator(f):
+        if decorator.end == -1:
+            decorator.end = decorator.start
+        for i in xrange(decorator.start, decorator.end+1):
+            assert i not in bytecodes
+            bytecodes[i] = (decorator.start, f)
+        return f
+    decorator.start = start
+    decorator.end = end
+    return decorator
 
 @register_bytecode(2, 8)
 def iconst_n(vm, klass, method, frame, offset, bytecode, pc):
