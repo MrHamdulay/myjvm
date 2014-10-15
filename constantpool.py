@@ -13,6 +13,10 @@ class ConstantPool:
     def get_string(self, index):
         return self.get_object(CONSTANT_Utf8, index)[0]
 
+    def get_class_name(self, index):
+        class_info = self.get_object(CONSTANT_Class, index)
+        return self.get_string(class_info[0])
+
     def get_class(self, index):
         klass = self.get_object(CONSTANT_Class, index)
         return self.get_string(klass[0])
