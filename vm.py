@@ -53,6 +53,8 @@ class VM:
             assert field_type in expected_field_types
         if field_type == 'String':
             return current_klass.constant_pool.get_string(field[0])
+        elif field_type in ('Float', ):
+            return field[0]
         klass_descriptor = current_klass.constant_pool.get_class(field[0])
         field_name, field_descriptor = current_klass.constant_pool.get_name_and_type(field[1])
         klass = self.load_class(klass_descriptor)

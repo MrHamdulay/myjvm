@@ -92,9 +92,9 @@ class ClassReader:
             elif 0x7f800001 <= bytes <= 0x7fffffff or 0xff800001 <= bytes <= 0xffffffff:
                 value = float('nan')
             else:
-                s = 1 if ((bits >> 31) == 0) else -1
-                e = ((bits >> 23) & 0xff)
-                m = ((bits & 0x7fffff) << 1) if e == 0 else (bits & 0x7fffff) | 0x800000
+                s = 1 if ((bytes >> 31) == 0) else -1
+                e = ((bytes >> 23) & 0xff)
+                m = ((bytes & 0x7fffff) << 1) if e == 0 else (bytes & 0x7fffff) | 0x800000
                 value = s * e * m * float('2e-150')
             return tag, value
         elif tag == CONSTANT_Double:
@@ -108,9 +108,9 @@ class ClassReader:
             elif 0x7ff0000000000001L <= bytes <= 0x7fffffffffffffffL or 0xfff0000000000001L <= bytes <= 0xffffffffffffffffL:
                 value = float('nan')
             else:
-                s = 1 if ((bits >> 63) == 0) else -1
-                e = ((bits >> 52) & 0x7ffL)
-                m = ((bits & 0xfffffffffffffL) << 1) if e == 0 else (bits & 0xfffffffffffffL) | 0x10000000000000L
+                s = 1 if ((bytes >> 63) == 0) else -1
+                e = ((bytes >> 52) & 0x7ffL)
+                m = ((bytes & 0xfffffffffffffL) << 1) if e == 0 else (bytes & 0xfffffffffffffL) | 0x10000000000000L
                 value = s * e * m * float('2e-150')
             return tag, value
         elif tag == CONSTANT_Long:
