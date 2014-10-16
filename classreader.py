@@ -33,9 +33,11 @@ class ClassReader:
         print klass.major_version, klass.minor_version
 
         constant_pool_length = self._read_byte2()
-        for i in xrange(constant_pool_length-1):
-            klass.constant_pool.add_pool(self.parse_constant_pool_item())
-        print 'constant pool', klass.constant_pool
+        try:
+            while klass.constant_pool.size < constant_pool_length-1:
+                klass.constant_pool.add_pool(self.parse_constant_pool_item())
+        finally:
+            print 'constant pool\n', klass.constant_pool
 
         klass.access_flags = self._read_byte2()
         klass.this_class = klass.constant_pool.get_class(self._read_byte2())
@@ -164,7 +166,7 @@ class ClassReader:
             name_and_type_index = self._read_byte22()
             return tag, bootstrap_method_attr_index, name_and_type_index
         else:
-            raise Exception('Unknown tag in constant pool ' + tag)
+            raise Exception('Unknown tag in constant pool %s' % tag)
 
     def parse_field(self):
         access_flags = self._read_byte2()

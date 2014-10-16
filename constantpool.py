@@ -7,8 +7,14 @@ class ConstantPool:
     def __init__(self):
         self.constant_pool = []
 
+    @property
+    def size(self):
+        return len(self.constant_pool)
+
     def add_pool(self, *args):
         self.constant_pool.append(*args)
+        if args[0][0] in (CONSTANT_Double, CONSTANT_Long):
+            self.constant_pool.append((CONSTANT_Utf8, 'blank'))
 
     def get_string(self, index):
         return self.get_object(CONSTANT_Utf8, index)[0]
@@ -44,5 +50,5 @@ class ConstantPool:
     def __repr__(self):
         result = ''
         for i, constant in enumerate(self.constant_pool):
-            result += '%d %s %s' % (i, CONSTANT_POOL_NAMES[constant[0]-1],  ' '.join(map(str, constant[1:])) +'\n')
+            result += '%d %s %s' % (i+1, CONSTANT_POOL_NAMES[constant[0]-1],  ' '.join(map(str, constant[1:])) +'\n')
         return result
