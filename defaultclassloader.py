@@ -1,7 +1,6 @@
 import os.path
 from zipfile import ZipFile
 
-from klasses import native_classes
 from classreader import ClassReader
 
 class DefaultClassLoader:
@@ -22,9 +21,6 @@ class DefaultClassLoader:
 
 
     def load(self, classname):
-        if classname in native_classes:
-            return native_classes[classname]
-
         class_file = None
 
         if classname in self.lazy_classes:

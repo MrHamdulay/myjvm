@@ -4,6 +4,7 @@ from classtypes import CodeAttribute, Method
 from classconstants import ACC_STATIC, void
 from frame import Frame
 from descriptor import parse_descriptor
+from klasses import classes_with_natives
 
 class NoSuchMethodException(Exception):
     pass
@@ -43,6 +44,11 @@ class Class(object):
         return ClassInstance(self.method_name, self)
 
     def run_method(self, vm, method, method_descriptor):
+        native_method = None
+        # handle native methods
+        if (method.access_flags & ACC_NATIVE) != 0:
+            native_method = getattr(classes_with_natives[self.name], method.name)
+            method.attributes.append(CodeAttribute(100, 100, [], [], []))
         # yup, our stack has infinite depth. Contains only frames
         code = get_attribute(method, 'Code')
 
@@ -62,7 +68,10 @@ class Class(object):
             locals_index +=1
         vm.stack.append(frame)
 
-        return_value = vm.run_bytecode(self, method, code.code, frame)
+        if native_method:
+            return_value = native_method(self, vm, method, frame)
+        else:
+            return_value = vm.run_bytecode(self, method, code.code, frame)
 
         # TODO: check for frame return value somehow
 

@@ -1,4 +1,4 @@
-from classconstants import void, null
+from classconstants import void, null, ACC_STATIC
 from klass import ClassInstance
 
 bytecodes = {}
@@ -93,9 +93,12 @@ def putfield(vm, klass, method, frame, offset, bytecode, pc):
 
 @register_bytecode(182)
 @register_bytecode(183)
+@register_bytecode(184)
 def invokevirtual_special(vm, klass, method, frame, offset, bytecode, pc):
     method_index = vm.constant_pool_index(bytecode, pc)
     klass, method = vm.resolve_field(klass, method_index)
+    if bytecode[pc] == 184:
+        assert (method.access_flags & ACC_STATIC) != 0
     vm.run_method(klass, method)
     return pc + 2
 
