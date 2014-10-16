@@ -32,6 +32,7 @@ class Class(object):
         self.constant_pool = ConstantPool()
         self.interfaces = []
         self.fields = {}
+        self.field_values = {}
         self.methods = {}
         self.attributes = []
 
@@ -93,6 +94,9 @@ class Class(object):
         print self.fields
         print self.methods
         print self.attributes
+
+    def __repr__(self):
+        return '<Klass %s> ' % self.name
 
 
 class NativeClass(Class):

@@ -2,17 +2,21 @@ from classconstants import void, null, ACC_STATIC
 from klass import ClassInstance
 
 bytecodes = {}
-def register_bytecode(start, end=-1):
+def register_bytecode(start, end=-1, has_index=False):
     def decorator(f):
         if decorator.end == -1:
             decorator.end = decorator.start
         for i in xrange(decorator.start, decorator.end+1):
             assert i not in bytecodes
-            bytecodes[i] = (decorator.start, f)
+            bytecodes[i] = (decorator.start, f, has_index)
         return f
     decorator.start = start
     decorator.end = end
     return decorator
+
+@register_bytecode(1)
+def aconst_null(vm, klass, method, frame, offset, bytecode, pc):
+    frame.push(null)
 
 @register_bytecode(2, 8)
 def iconst_n(vm, klass, method, frame, offset, bytecode, pc):
@@ -74,17 +78,27 @@ def ireturn(vm, klass, method, frame, offset, bytecode, pc):
 def return_(vm, klass, method, frame, offset, bytecode, pc):
     frame.return_value = void
 
-@register_bytecode(178)
+@register_bytecode(178, has_index=True)
 def getstatic(vm, klass, method, frame, offset, bytecode, pc):
     ref_index = vm.constant_pool_index(bytecode, pc)
-    field = vm.resolve_field(klass, ref_index)
-    frame.push(field)
+    field_klass, field_name, field_descriptor = vm.resolve_field(klass, ref_index)
+    frame.push(field_klass.field_values[field_name])
     return pc + 2
+
+@register_bytecode(179, has_index=True)
+def putstatic(vm, klass, method, frame, offset, bytecode, pc):
+    ref_index = vm.constant_pool_index(bytecode, pc)
+    field_klass, field_name, field_descriptor = vm.resolve_field(klass, ref_index)
+    value = frame.pop()
+    assert field_name in field_klass.fields
+    field_klass.field_values[field_name] = value
+    return pc + 2
+
 
 @register_bytecode(181)
 def putfield(vm, klass, method, frame, offset, bytecode, pc):
     field_index = vm.constant_pool_index(bytecode, pc)
-    field_name, field_descriptor = vm.resolve_field(klass,
+    field_klass, field_name, field_descriptor = vm.resolve_field(klass,
             field_index, 'Fieldref')
     value, objectref = frame.pop(), frame.pop()
     assert isinstance(objectref, ClassInstance)

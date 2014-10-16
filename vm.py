@@ -18,10 +18,10 @@ class VM:
         self.heap = []
 
     def load_class(self, class_name):
-        logging.debug( 'loading %s' % class_name)
         if class_name in self.class_cache:
             return self.class_cache[class_name]
 
+        logging.debug( 'loading %s' % class_name)
         klass = self.class_loader.load(class_name)
         self.class_cache[class_name] = klass
 
@@ -59,7 +59,7 @@ class VM:
         if field_type == 'Methodref':
             return klass, klass.get_method(field_name, field_descriptor)
         elif field_type == 'Fieldref':
-            return field_name, field_descriptor
+            return klass, field_name, field_descriptor
         else:
             raise Exception('unknown field type %s' % field_type)
 
@@ -70,8 +70,12 @@ class VM:
             print 'stackframe', frame.stack
             bc = bytecode[pc]
             if bc in bytecodes:
-                start, bytecode_function = bytecodes[bc]
+                start, bytecode_function, has_constant_pool_index = bytecodes[bc]
                 logging.debug('calling bytecode %s' % bytecode_function.__name__)
+                if has_constant_pool_index:
+                    logging.debug('with constant pool argument %s' %
+                            (current_klass.constant_pool.get_object(0, self.constant_pool_index(bytecode, pc)), ))
+
                 ret = bytecode_function(self, current_klass, method, frame, bc - start, bytecode, pc)
                 if ret:
                     pc = ret
