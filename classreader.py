@@ -39,7 +39,10 @@ class ClassReader:
 
         klass.access_flags = self._read_byte2()
         klass.this_class = klass.constant_pool.get_class(self._read_byte2())
-        klass.super_class = klass.constant_pool.get_class(self._read_byte2())
+        super_class_index = self._read_byte2()
+        klass.super_class = 'java/lang/Object'
+        if super_class_index != 0:
+            klass.super_class = klass.constant_pool.get_class(super_class_index)
 
         interfaces_count = self._read_byte2()
         for i in xrange(interfaces_count):

@@ -1,7 +1,7 @@
 from utils import get_attribute
 from constantpool import ConstantPool
 from classtypes import CodeAttribute, Method
-from classconstants import ACC_STATIC, void
+from classconstants import ACC_STATIC, ACC_NATIVE, void
 from frame import Frame
 from descriptor import parse_descriptor
 from klasses import classes_with_natives
@@ -47,7 +47,10 @@ class Class(object):
         native_method = None
         # handle native methods
         if (method.access_flags & ACC_NATIVE) != 0:
-            native_method = getattr(classes_with_natives[self.name], method.name)
+            try:
+                native_method = getattr(classes_with_natives[self.name], method.name)
+            except AttributeError:
+                raise Exception('Missing method %s on class %s' % (method.name, self.name))
             method.attributes.append(CodeAttribute(100, 100, [], [], []))
         # yup, our stack has infinite depth. Contains only frames
         code = get_attribute(method, 'Code')
