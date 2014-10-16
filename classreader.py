@@ -197,8 +197,8 @@ class ClassReader:
         attribute = None
         if name == 'ConstantValue':
             value_index = self._read_byte2()
-            value = self.klass.constant_pool.get_object(value_index)
-            attribute = ConstantValueAttribute(length, value)
+            type, value = self.klass.constant_pool.get_object(0, value_index)
+            attribute = ConstantValueAttribute(value, type)
         elif name == 'Code':
             max_stack = self._read_byte2()
             max_locals = self._read_byte2()

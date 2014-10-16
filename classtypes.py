@@ -3,7 +3,7 @@ from collections import namedtuple
 AnnotationDefaultAttribute = namedtuple('AnnotationDefaultAttribute', 'attribute_name attribute_name_length default_value')
 BootstapMethodsAttribute = namedtuple('BootstapMethodsAttribute', 'bootstrap_methods')
 CodeAttribute = namedtuple('CodeAttribute', 'max_stack max_locals code exceptions attributes')
-ConstantValueAttribute = namedtuple('ConstantValueAttribute', 'length value')
+ConstantValueAttribute = namedtuple('ConstantValueAttribute', 'value type')
 EnclosingMethodAttribute = namedtuple('EnclosingMethodAttribute', 'classs method_index')
 ExceptionsAttribute = namedtuple('ExceptionsAttribute', 'exception_indexes')
 Field = namedtuple('Field', 'access_flags name descriptor attributes')
