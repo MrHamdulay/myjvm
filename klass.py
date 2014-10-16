@@ -159,3 +159,10 @@ class ClassInstance(object):
 
     def __repr__(self):
         return '<Instance of %s>' % self._klass_name
+
+class ArrayClass(object):
+    _klass = None
+
+    def __init__(self, klass, size):
+        self._klass = klass
+        self.array = [None] * size

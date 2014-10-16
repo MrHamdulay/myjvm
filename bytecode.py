@@ -1,5 +1,5 @@
 from classconstants import void, null, ACC_STATIC
-from klass import ClassInstance
+from klass import ClassInstance, ArrayClass
 
 bytecodes = {}
 def register_bytecode(start, end=-1, has_index=False):
@@ -124,3 +124,13 @@ def new(vm, klass, method, frame, offset, bytecode, pc):
     instance = ClassInstance(klass_name, klass)
     frame.push(instance)
     return pc  + 2
+
+@register_bytecode(189)
+def anewarray(vm, klass, method, frame, offset, bytecode, pc):
+    klass_name = klass.constant_pool.get_class(vm.constant_pool_index(bytecode, pc))
+    klass = vm.load_class(klass_name)
+
+    size = frame.pop()
+    assert isinstance(size, int)
+    frame.push(ArrayClass(klass, size))
+    return pc + 2
