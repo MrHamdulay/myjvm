@@ -34,6 +34,13 @@ def ldc(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(field)
     return pc+1
 
+@register_bytecode(22)
+def iload(vm, klass, method, frame, offset, bytecode, pc):
+    local = frame.get_local(bytecode[pc+1])
+    assert isinstance(local, int)
+    frame.push(local)
+    return pc+1
+
 @register_bytecode(26, 29)
 def iload_n(vm, klass, method, frame, offset, bytecode, pc):
     local = frame.get_local(offset)
@@ -43,6 +50,14 @@ def iload_n(vm, klass, method, frame, offset, bytecode, pc):
 @register_bytecode(42, 45)
 def aload_n(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(frame.local_variables[offset])
+
+@register_bytecode(55)
+def lstore(vm, klass, method, frame, offset, bytecode, pc):
+    index = bytecode[pc+1]
+    local = frame.pop()
+    assert isinstance(local, int)
+    frame.insert_local(index, local)
+    return pc + 1
 
 @register_bytecode(59, 62)
 def istore_n(vm, klass, method, frame, offset, bytecode, pc):
@@ -63,6 +78,20 @@ def dup(vm, klass, method, frame, offset, bytecode, pc):
 @register_bytecode(96)
 def iadd(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(int(frame.pop())+int(frame.pop()))
+
+@register_bytecode(100)
+def isub(vm, klass, method, frame, offset, bytecode, pc):
+    a, b = frame.pop(), frame.pop()
+    assert isinstance(a, int) and isinstance(b, int)
+    frame.push(a-b)
+
+@register_bytecode(133)
+def i2l(vm, klass, method, frame, offset, bytecode, pc):
+    return None
+
+@register_bytecode(138)
+def l2d(vm, klass, method, frame, offset, bytecode, pc):
+    frame.push(float(frame.pop()))
 
 @register_bytecode(167)
 def goto(vm, klass, method, frame, offset, bytecode, pc):
