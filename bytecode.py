@@ -1,3 +1,7 @@
+import operator
+import logging
+import struct
+
 from classconstants import void, null, ACC_STATIC
 from klass import ClassInstance, ArrayClass
 
@@ -47,6 +51,12 @@ def iload_n(vm, klass, method, frame, offset, bytecode, pc):
     assert isinstance(local, int)
     frame.push(local)
 
+@register_bytecode(34, 37)
+def fload(vm, klass, method, frame, offset, bytecode, pc):
+    local = frame.get_local(offset)
+    assert isinstance(local, float)
+    frame.push(local)
+
 @register_bytecode(42, 45)
 def aload_n(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(frame.local_variables[offset])
@@ -84,6 +94,51 @@ def isub(vm, klass, method, frame, offset, bytecode, pc):
     a, b = frame.pop(), frame.pop()
     assert isinstance(a, int) and isinstance(b, int)
     frame.push(a-b)
+
+@register_bytecode(126)
+def iand(vm, klass, method, frame, offset, bytecode, pc):
+    a, b = frame.pop(), frame.pop()
+    assert isinstance(a, int) and isinstance(b, int)
+    frame.push(a&b)
+
+def zero_comparison(name, operator):
+    def comparison(vm, klass, method, frame, offset, bytecode, pc):
+        a=frame.pop()
+        assert isinstance(a, int)
+        if operator(a, 0):
+            jump = vm.constant_pool_index(bytecode, pc)
+            print bytecode[pc:]
+            jump -= 1<<15
+            logging.debug('jumping to %d ' % jump)
+            return jump
+        return pc+1
+    comparison.__name__ = name
+    return comparison
+
+ifeq = register_bytecode(153)(zero_comparison('ifeq', operator.eq))
+ifne = register_bytecode(154)(zero_comparison('ifne', operator.ne))
+iflt = register_bytecode(155)(zero_comparison('iflt', operator.lt))
+ifge = register_bytecode(156)(zero_comparison('ifge', operator.ge))
+ifgt = register_bytecode(157)(zero_comparison('ifgt', operator.gt))
+ifle = register_bytecode(158)(zero_comparison('ifle', operator.le))
+
+def integer_comparison(name, operator):
+    def comparison(vm, klass, method, frame, offset, bytecode, pc):
+        a, b = frame.pop(), frame.pop()
+        assert isinstance(a, int) and isinstance(b, int)
+        if operator(a, b):
+            logging.debug('jumping to %d ' % vm.constant_pool_index(bytecode, pc))
+            return vm.constant_pool_index(bytecode, pc)
+        return pc+1
+    comparison.__name__ = name
+    return comparison
+
+if_cmpeq = register_bytecode(159)(integer_comparison('if_cmpeq', operator.eq))
+if_cmpne = register_bytecode(160)(integer_comparison('if_cmpne', operator.ne))
+if_cmplt = register_bytecode(161)(integer_comparison('if_cmplt', operator.lt))
+if_cmpge = register_bytecode(162)(integer_comparison('if_cmpge', operator.ge))
+if_cmpgt = register_bytecode(163)(integer_comparison('if_cmpgt', operator.gt))
+if_cmple = register_bytecode(164)(integer_comparison('if_cmple', operator.le))
 
 @register_bytecode(133)
 def i2l(vm, klass, method, frame, offset, bytecode, pc):

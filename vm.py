@@ -5,6 +5,7 @@ from frame import Frame
 from klass import NoSuchMethodException, ClassInstance
 from classconstants import *
 from descriptor import parse_descriptor
+from klasses import builtin_classes
 
 from bytecode import bytecodes
 
@@ -18,6 +19,8 @@ class VM:
         self.heap = []
 
     def load_class(self, class_name):
+        if class_name in builtin_classes:
+            return builtin_classes[class_name]
         if class_name in self.class_cache:
             return self.class_cache[class_name]
 
@@ -53,7 +56,7 @@ class VM:
             assert field_type in expected_field_types
         if field_type == 'String':
             return current_klass.constant_pool.get_string(field[0])
-        elif field_type in ('Float', ):
+        elif field_type in ('Float', 'Integer'):
             return field[0]
         klass_descriptor = current_klass.constant_pool.get_class(field[0])
         field_name, field_descriptor = current_klass.constant_pool.get_name_and_type(field[1])
@@ -69,11 +72,11 @@ class VM:
     def run_bytecode(self, current_klass, method, bytecode, frame):
         pc = 0
         while pc < len(bytecode):
-            print 'stackframe', frame.stack
+            logging.debug( 'stackframe %s'% frame.stack)
             bc = bytecode[pc]
             if bc in bytecodes:
                 start, bytecode_function, has_constant_pool_index = bytecodes[bc]
-                logging.debug('calling bytecode %s' % bytecode_function.__name__)
+                logging.debug('calling bytecode %s (%d)' % (bytecode_function.__name__, pc))
                 if has_constant_pool_index:
                     logging.debug('with constant pool argument %s' %
                             (current_klass.constant_pool.get_object(0, self.constant_pool_index(bytecode, pc)), ))

@@ -48,9 +48,10 @@ class Class(object):
         native_method = None
         # handle native methods
         if (method.access_flags & ACC_NATIVE) != 0:
+            assert not hasattr(method, 'code')
             try:
                 native_method = getattr(classes_with_natives[self.name], method.name)
-            except AttributeError:
+            except (KeyError, AttributeError):
                 raise Exception('Missing method %s on class %s' % (method.name, self.name))
             method.attributes.append(CodeAttribute(100, 100, [], [], []))
         # yup, our stack has infinite depth. Contains only frames
