@@ -18,6 +18,11 @@ def register_bytecode(start, end=-1, has_index=False):
     decorator.end = end
     return decorator
 
+def decode_signed_offset(bytecode, pc):
+    jump = struct.unpack('>h', chr(bytecode[pc+1])+chr(bytecode[pc+2]))[0]+pc
+    logging.debug('offset %d' % jump)
+    return jump
+
 @register_bytecode(1)
 def aconst_null(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(null)
@@ -106,11 +111,7 @@ def zero_comparison(name, operator):
         a=frame.pop()
         assert isinstance(a, int)
         if operator(a, 0):
-            jump = vm.constant_pool_index(bytecode, pc)
-            print bytecode[pc:]
-            jump -= 1<<15
-            logging.debug('jumping to %d ' % jump)
-            return jump
+            return decode_signed_offset(bytecode, pc)
         return pc+1
     comparison.__name__ = name
     return comparison
@@ -127,8 +128,7 @@ def integer_comparison(name, operator):
         a, b = frame.pop(), frame.pop()
         assert isinstance(a, int) and isinstance(b, int)
         if operator(a, b):
-            logging.debug('jumping to %d ' % vm.constant_pool_index(bytecode, pc))
-            return vm.constant_pool_index(bytecode, pc)
+            return decode_signed_offset(bytecode, pc)
         return pc+1
     comparison.__name__ = name
     return comparison
