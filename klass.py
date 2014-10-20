@@ -1,3 +1,5 @@
+import logging
+
 from utils import get_attribute
 from constantpool import ConstantPool
 from classtypes import CodeAttribute, Method
@@ -58,25 +60,28 @@ class Class(object):
         code = get_attribute(method, 'Code')
 
         frame = Frame(max_stack=code.max_stack, max_locals=code.max_locals)
-        locals_index=0
+
+        method_arguments, method_return_type = parse_descriptor(method.descriptor)
+        num_args = len(method_arguments)
+
         if (method.access_flags & ACC_STATIC ) == 0:
             # method is not static so load instance
-            frame.insert_local(locals_index, vm.stack[-1].pop())
-            locals_index+=1
+            num_args+=1
 
-        print 'stack', vm.stack[-1]
-        # parse argument list and return type
-        method_arguments, method_return_type = parse_descriptor(method.descriptor)
-        # read arguments into stack
-        for arg_type in method_arguments:
-            try:
-                arg = vm.stack[-1].pop()
-            except IndexError:
-                given_arguments = ' '.join(frame.get_local(i) for i in xrange(locals_index-1))
-                raise Exception('Not enough arguments in method %s.%s required: %s, Given: %s' % (self.name, method.name, method.descriptor, given_arguments))
-            frame.insert_local(locals_index, arg)
-            locals_index +=1
+        while num_args > 0:
+            num_args -= 1
+            frame.insert_local(num_args, vm.stack[-1].pop())
+
+        logging.debug('calling method with stack: %s' % frame.stack)
+        logging.debug('calling method with locals: %s' % frame.local_variables)
+
+        if len(vm.stack) < num_args:
+            given_arguments = ' '.join(str(frame.get_local(i)) for i in xrange(num_args-1))
+            raise Exception('Not enough arguments in method %s.%s required: %s, Given: %s' %
+                    (self.name, method.name, method.descriptor, given_arguments))
+
         vm.stack.append(frame)
+
 
         if native_method:
             return_value = native_method(self, vm, method, frame)
