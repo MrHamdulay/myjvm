@@ -1,17 +1,22 @@
 import os.path
-from zipfile import ZipFile
+try:
+    from rpython.rlib.rzipfile import RZipFile
+    ZipFile = RZipFile
+except:
+    from zipfile import ZipFile
 
 from classreader import ClassReader
 
 class DefaultClassLoader:
-    def __init__(self, classpath=[]):
-        self.classpath = ['.'] + classpath
+    def __init__(self, classpath):
+        self.classpath = classpath
+        print classpath
         self.lazy_classes = {}
-        pass
 
     def load_jar(self, jarfilename):
         jar = ZipFile(jarfilename)
-        for classname in jar.namelist():
+        for zipinfo in jar.filelist:
+            classname = zipinfo.filename
             if not classname.endswith('.class'):
                 continue
             self.lazy_classes[classname.split('.class')[0]] = jar
@@ -31,7 +36,7 @@ class DefaultClassLoader:
 
             class_file = None
             for classpath in self.classpath:
-                class_filename = os.path.join(*([classpath]+parts))+'.class'
+                class_filename = '%s/%s.class' % (classpath, classname)
                 if os.path.isfile(class_filename):
                     class_file = open(class_filename)
                     break

@@ -1,6 +1,6 @@
 import sys
-import logging
-import os.path
+#import logging
+#import os.path
 
 from classreader import ClassReader
 from vm import VM
@@ -20,15 +20,23 @@ class Interpreter:
 
 
 
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG)
-    if len(sys.argv) != 2:
+def entry_point(argv):
+    #logging.basicConfig(level=logging.DEBUG)
+    if len(argv) != 2:
         print 'Usage: interpreter.py <class>'
-        sys.exit(0)
-    classpath=[]
-    dir, classname = os.path.split(sys.argv[1])
-    if os.path.isdir(dir):
-        classpath.append(dir)
+        return 1
+    classpath=['.']
+    path_parts = argv[1].split('/')
+    dir, classname = '/'.join(path_parts[:-1]), path_parts[-1]
+    classpath.append(str(dir))
 
     interpreter = Interpreter(classname, classpath)
     interpreter.start()
+
+    return 0
+
+def target(*args):
+    return entry_point, None
+
+if __name__ == '__main__':
+    entry_point(sys.argv)
