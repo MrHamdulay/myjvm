@@ -34,3 +34,6 @@ class Frame:
 
     def get_local(self, index):
         return self.local_variables[index]
+
+    def __repr__(self):
+        return '<Frame stack:%d vars:%d>' % (len(self.stack), len(self.local_variables))

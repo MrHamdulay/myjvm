@@ -43,7 +43,7 @@ class VM:
         return klass
 
     def run_method(self, klass, method):
-        logging.debug('running method %s' %  str(method))
+        logging.debug('running method %s.%s' %  (klass.name, str(method)))
         klass.run_method(self, method, method.descriptor)
 
 
@@ -55,7 +55,9 @@ class VM:
         if expected_field_types:
             assert field_type in expected_field_types
         if field_type == 'String':
-            return current_klass.constant_pool.get_string(field[0])
+            string = ClassInstance('java/lang/String', self.load_class('java/lang/String'))
+            string.value = map(ord, current_klass.constant_pool.get_string(field[0]))
+            return string
         elif field_type in ('Float', 'Integer'):
             return field[0]
         klass_descriptor = current_klass.constant_pool.get_class(field[0])
@@ -76,7 +78,7 @@ class VM:
             bc = bytecode[pc]
             if bc in bytecodes:
                 start, bytecode_function, has_constant_pool_index = bytecodes[bc]
-                logging.debug('calling bytecode %s (%d)' % (bytecode_function.__name__, pc))
+                logging.debug('pc: %d (%s.%s) calling bytecode %s' % (pc, current_klass.name, method.name, bytecode_function.__name__))
                 if has_constant_pool_index:
                     logging.debug('with constant pool argument %s' %
                             (current_klass.constant_pool.get_object(0, self.constant_pool_index(bytecode, pc)), ))

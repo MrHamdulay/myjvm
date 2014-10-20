@@ -64,11 +64,16 @@ class Class(object):
             frame.insert_local(locals_index, vm.stack[-1].pop())
             locals_index+=1
 
+        print 'stack', vm.stack[-1]
         # parse argument list and return type
         method_arguments, method_return_type = parse_descriptor(method.descriptor)
         # read arguments into stack
         for arg_type in method_arguments:
-            arg = vm.stack[-1].pop()
+            try:
+                arg = vm.stack[-1].pop()
+            except IndexError:
+                given_arguments = ' '.join(frame.get_local(i) for i in xrange(locals_index-1))
+                raise Exception('Not enough arguments in method %s.%s required: %s, Given: %s' % (self.name, method.name, method.descriptor, given_arguments))
             frame.insert_local(locals_index, arg)
             locals_index +=1
         vm.stack.append(frame)
@@ -86,6 +91,11 @@ class Class(object):
             vm.stack[-1].push(return_value)
         else:
             assert return_value is void
+
+        if not native_method:
+            print 'locals'
+            for i in xrange(code.max_locals):
+                print 'local %d %s' % (i, frame.get_local(i))
         return return_value
 
 
@@ -113,6 +123,8 @@ class NativeClass(Class):
         if (method.access_flags & ACC_STATIC ) == 0:
             # method is not static so load instance
             args.append(vm.stack[-1].pop())
+            if args[-1] == null:
+                raise Exception('nullpointerexception')
 
         # parse argument list and return type
         method_arguments, method_return_type = parse_descriptor(method_descriptor)

@@ -1,4 +1,5 @@
 import sys
+import logging
 
 from classconstants import *
 from classtypes import *
@@ -18,7 +19,6 @@ class ClassReader:
         self.parse()
 
     def parse(self):
-        print self.classname
         # read the first magic bytes
         for magic in MAGIC:
             byte = self._read_byte()
@@ -30,14 +30,10 @@ class ClassReader:
         # class file version
         klass.minor_version = self._read_byte2()
         klass.major_version = self._read_byte2()
-        print klass.major_version, klass.minor_version
 
         constant_pool_length = self._read_byte2()
-        try:
-            while klass.constant_pool.size < constant_pool_length-1:
-                klass.constant_pool.add_pool(self.parse_constant_pool_item())
-        finally:
-            print 'constant pool\n', klass.constant_pool
+        while klass.constant_pool.size < constant_pool_length-1:
+            klass.constant_pool.add_pool(self.parse_constant_pool_item())
 
         klass.access_flags = self._read_byte2()
         klass.this_class = klass.constant_pool.get_class(self._read_byte2())
@@ -49,14 +45,12 @@ class ClassReader:
         interfaces_count = self._read_byte2()
         for i in xrange(interfaces_count):
             klass.interfaces.append(klass.constant_pool.get_class(self._read_byte2()))
-        print 'interfaces', klass.interfaces
 
 
         field_length = self._read_byte2()
         for i in xrange(field_length):
             field = self.parse_field()
             klass.fields[field.name] = field
-        print 'fields', klass.fields
 
         method_count = self._read_byte2()
         for i in xrange(method_count):
@@ -192,7 +186,6 @@ class ClassReader:
         attribute_length = self._read_byte4()
         start_offset = self.offset
         name = self.klass.constant_pool.get_string(name_index)
-        print 'parsing attribute', name
 
         attribute = None
         if name == 'ConstantValue':
@@ -228,7 +221,6 @@ class ClassReader:
             attribute = ExceptionsAttribute(exception_indexes)
         elif name == 'InnerClasses':
             num_classes = self._read_byte2()
-            print 'num classes', num_classes
             inner_classes = []
             for i in xrange(num_classes):
                 inner_class_info_index = self._read_byte2()
@@ -325,7 +317,7 @@ class ClassReader:
                 parameters.append((name, access_flags))
             attribute = MethodParametersAttribute(parameters)
         else:
-            print 'Unknown attribute', name
+            logging.debug('Unknown attribute %s' % name)
             for i in xrange(attribute_length):
                 self._read_byte()
             attribute = name,

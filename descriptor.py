@@ -37,4 +37,5 @@ def parse_descriptor(string):
     return _parse_descriptor(string)[0]
 
 if __name__ == '__main__':
-    print parse_descriptor('(I[D[[[BLjava/lang/Thread;)Ljava/lang/Object;')
+    #print parse_descriptor('(I[D[[[BLjava/lang/Thread;)Ljava/lang/Object;')
+    print parse_descriptor('(Ljava/lang/String$1;)V')
