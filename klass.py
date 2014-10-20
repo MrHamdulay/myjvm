@@ -68,17 +68,19 @@ class Class(object):
             # method is not static so load instance
             num_args+=1
 
+        if len(vm.stack) < num_args-1:
+            given_arguments = ' '.join(str(frame.get_local(i)) for i in xrange(num_args-1))
+            raise Exception('Not enough arguments in method %s.%s required: %s, Given: %s' %
+                    (self.name, method.name, method.descriptor, given_arguments))
+
+        #logging.debug('stack before adding methods %s' % vm.stack[-1].stack)
         while num_args > 0:
             num_args -= 1
             frame.insert_local(num_args, vm.stack[-1].pop())
 
-        logging.debug('calling method with stack: %s' % frame.stack)
-        logging.debug('calling method with locals: %s' % frame.local_variables)
+        #logging.debug('calling method with stack: %s' % frame.stack)
+        #logging.debug('calling method with locals: %s' % frame.local_variables)
 
-        if len(vm.stack) < num_args:
-            given_arguments = ' '.join(str(frame.get_local(i)) for i in xrange(num_args-1))
-            raise Exception('Not enough arguments in method %s.%s required: %s, Given: %s' %
-                    (self.name, method.name, method.descriptor, given_arguments))
 
         vm.stack.append(frame)
 

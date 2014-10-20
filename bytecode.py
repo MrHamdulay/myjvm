@@ -198,6 +198,16 @@ def putstatic(vm, klass, method, frame, offset, bytecode, pc):
     field_klass.field_values[field_name] = value
     return pc + 2
 
+@register_bytecode(180)
+def getfield(vm, klass, method, frame, offset, bytecode, pc):
+    field_index = vm.constant_pool_index(bytecode, pc)
+    field_klass, field_name, field_descriptor = vm.resolve_field(klass,
+            field_index, 'Fieldref')
+    objectref = frame.pop()
+    assert isinstance(objectref, ClassInstance)
+    frame.push( objectref.__getattr__(field_name))
+    return pc + 2
+
 
 @register_bytecode(181)
 def putfield(vm, klass, method, frame, offset, bytecode, pc):
