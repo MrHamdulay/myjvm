@@ -19,7 +19,7 @@ def register_bytecode(start, end=-1, has_index=False):
     return decorator
 
 def decode_signed_offset(bytecode, pc):
-    jump = struct.unpack('>h', chr(bytecode[pc+1])+chr(bytecode[pc+2]))[0]+pc
+    jump = struct.unpack('>h', chr(bytecode[pc+1])+chr(bytecode[pc+2]))[0]+pc-1
     logging.debug('offset %d' % jump)
     return jump
 
@@ -29,7 +29,7 @@ def aconst_null(vm, klass, method, frame, offset, bytecode, pc):
 
 @register_bytecode(2, 8)
 def iconst_n(vm, klass, method, frame, offset, bytecode, pc):
-    frame.push(offset)
+    frame.push(offset-1)
 
 @register_bytecode(16)
 def bipush(vm, klass, method, frame, offset, bytecode, pc):
@@ -125,11 +125,12 @@ ifle = register_bytecode(158)(zero_comparison('ifle', operator.le))
 
 def integer_comparison(name, operator):
     def comparison(vm, klass, method, frame, offset, bytecode, pc):
-        a, b = frame.pop(), frame.pop()
+        b, a = frame.pop(), frame.pop()
         assert isinstance(a, int) and isinstance(b, int)
+        logging.debug('comparison %d %s %d' % (a, operator, b))
         if operator(a, b):
             return decode_signed_offset(bytecode, pc)
-        return pc+1
+        return pc+2
     comparison.__name__ = name
     return comparison
 
