@@ -86,6 +86,16 @@ def astore(vm, klass, method, frame, offset, bytecode, pc):
     assert isinstance(reference, ClassInstance)
     frame.insert_local(offset, reference)
 
+@register_bytecode(87)
+def pop(vm, klass, method, frame, offset, bytecode, pc):
+    frame.pop()
+
+@register_bytecode(88)
+def pop2(vm, klass, method, frame, offset, bytecode, pc):
+    frame.pop()
+    frame.pop()
+
+
 @register_bytecode(89)
 def dup(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(frame.stack[-1])
@@ -204,10 +214,11 @@ def putfield(vm, klass, method, frame, offset, bytecode, pc):
 @register_bytecode(184)
 def invokevirtual_special(vm, klass, method, frame, offset, bytecode, pc):
     method_index = vm.constant_pool_index(bytecode, pc)
-    klass, method = vm.resolve_field(klass, method_index)
+    new_klass, method = vm.resolve_field(klass, method_index)
+    logging.debug('GOT A CLASS %s.%s' % (new_klass, method))
     if bytecode[pc] == 184:
         assert (method.access_flags & ACC_STATIC) != 0
-    vm.run_method(klass, method)
+    vm.run_method(new_klass, method)
     return pc + 2
 
 @register_bytecode(187)
