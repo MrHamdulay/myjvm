@@ -160,7 +160,7 @@ def l2d(vm, klass, method, frame, offset, bytecode, pc):
 
 @register_bytecode(167)
 def goto(vm, klass, method, frame, offset, bytecode, pc):
-    return vm.constant_pool_index(bytecode, pc)
+    return decode_signed_offset(bytecode, pc)
 
 @register_bytecode(172)
 def ireturn(vm, klass, method, frame, offset, bytecode, pc):
