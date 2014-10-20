@@ -106,6 +106,15 @@ def iand(vm, klass, method, frame, offset, bytecode, pc):
     assert isinstance(a, int) and isinstance(b, int)
     frame.push(a&b)
 
+@register_bytecode(132)
+def iinc(vm, klass, method, frame, offset, bytecode, pc):
+    index, raw_const = bytecode[pc+1], bytecode[pc+2]
+    start_value = frame.get_local(index)
+    const = struct.unpack('>b', chr(raw_const))[0]
+    frame.insert_local(index, start_value + const)
+    assert isinstance(start_value, int)
+    return pc + 2
+
 def zero_comparison(name, operator):
     def comparison(vm, klass, method, frame, offset, bytecode, pc):
         a=frame.pop()
