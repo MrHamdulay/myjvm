@@ -3,6 +3,7 @@ try:
     from rpython.rlib.rzipfile import RZipFile
     ZipFile = RZipFile
 except:
+    RZipFile = None
     from zipfile import ZipFile
 
 from classreader import ClassReader
@@ -22,7 +23,10 @@ class DefaultClassLoader:
             self.lazy_classes[classname.split('.class')[0]] = jar
 
     def load_class_from_jar(self, classname):
-        return self.lazy_classes[classname].open(classname+'.class', 'r')
+        if RZipFile:
+            return self.lazy_classes[classname].read(classname+'.class')
+        else:
+            return self.lazy_classes[classname].open(classname+'.class').read()
 
 
     def load(self, classname):
@@ -38,7 +42,7 @@ class DefaultClassLoader:
             for classpath in self.classpath:
                 class_filename = '%s/%s.class' % (classpath, classname)
                 if os.path.isfile(class_filename):
-                    class_file = open(class_filename)
+                    class_file = open(class_filename).read()
                     break
             else:
                 raise Exception('class file not found: %s' % classname)

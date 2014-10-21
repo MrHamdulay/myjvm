@@ -14,24 +14,13 @@ class NoSuchMethodException(Exception):
 EMPTY_METHOD = Method(ACC_STATIC, '', '()V', [CodeAttribute(0, 0, [], [], [])])
 
 class Class(object):
-    name = None
-
-    major_version = None
-    minor_version = None
-
-    constant_pool = None
-    access_flags = None
-    this_class = None
-    super_class = None
-
-    interfaces = None
-    fields = None
-    methods = None
-    attributes = None
-
     def __init__(self, name=None):
         self.name = name if name else self.__class__.__name__
-        self.constant_pool = ConstantPool()
+        self.major_version, self.minor_version = -1, -1
+        self.constant_pool = ConstantPool(0)
+        self.access_flags = 0
+        self.this_class = None
+        self.super_class = None
         self.interfaces = []
         self.fields = {}
         self.field_values = {}

@@ -2,10 +2,10 @@ import logging
 
 from defaultclassloader import DefaultClassLoader
 from frame import Frame
-from klass import NoSuchMethodException, ClassInstance
+from klass import NoSuchMethodException, ClassInstance, Class
 from classconstants import *
 from descriptor import parse_descriptor
-from klasses import builtin_classes
+from klasses import primitive_classes
 
 from bytecode import bytecodes
 
@@ -19,9 +19,10 @@ class VM:
         self.heap = []
 
     def load_class(self, class_name):
-        if class_name in builtin_classes:
-            return builtin_classes[class_name]
         if class_name in self.class_cache:
+            return self.class_cache[class_name]
+        if class_name in primitive_classes:
+            self.class_cache[class_name] = Class(class_name)
             return self.class_cache[class_name]
 
         logging.debug( 'loading %s' % class_name)

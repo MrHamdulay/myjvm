@@ -4,17 +4,16 @@ class ConstantPoolException(Exception):
     pass
 
 class ConstantPool:
-    def __init__(self):
-        self.constant_pool = []
+    def __init__(self, size):
+        self.constant_pool = [[]]*size
+        self.size = 0
 
-    @property
-    def size(self):
-        return len(self.constant_pool)
-
-    def add_pool(self, *args):
-        self.constant_pool.append(*args)
-        if args[0][0] in (CONSTANT_Double, CONSTANT_Long):
-            self.constant_pool.append((CONSTANT_Utf8, 'blank'))
+    def add_pool(self, item):
+        self.constant_pool[self.size] = item
+        self.size += 1
+        if item[0] in (CONSTANT_Double, CONSTANT_Long):
+            self.constant_pool[self.size] = [CONSTANT_Utf8, 'blank']
+            self.size += 1
 
     def get_string(self, index):
         return self.get_object(CONSTANT_Utf8, index)[0]
@@ -42,6 +41,7 @@ class ConstantPool:
     def get_object(self, type, index):
         constant = self.constant_pool[index-1]
         if type != constant[0] and type != 0:
+            print constant
             raise ConstantPoolException('Expected %s got %s(%d) %s' % (CONSTANT_POOL_NAMES[type-1], CONSTANT_POOL_NAMES[constant[0]-1], type, constant[1:]))
         if type == 0:
             return CONSTANT_POOL_NAMES[constant[0]-1], constant[1:]

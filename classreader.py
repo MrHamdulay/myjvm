@@ -32,6 +32,7 @@ class ClassReader:
         klass.major_version = self._read_byte2()
 
         constant_pool_length = self._read_byte2()
+        klass.constant_pool = ConstantPool(constant_pool_length)
         while klass.constant_pool.size < constant_pool_length-1:
             klass.constant_pool.add_pool(self.parse_constant_pool_item())
 
@@ -59,24 +60,20 @@ class ClassReader:
 
         klass.attributes = self.parse_attributes()
 
-        # make sure we're at the end of our file
-        assert not self.file_reader.read(1)
-        self.file_reader.close()
-
     def parse_constant_pool_item(self):
         tag = self._read_byte()
 
         if tag in (CONSTANT_Class, CONSTANT_String):
             # index into constant pool of type UTF8 that references a class / array type
             name_index = self._read_byte2()
-            return tag, name_index
+            return [tag, name_index]
         elif tag in (CONSTANT_Fieldref, CONSTANT_Methodref, CONSTANT_InterfaceMethodref):
             class_index = self._read_byte2()
             name_and_type_index = self._read_byte2()
-            return tag, class_index, name_and_type_index
+            return [tag, class_index, name_and_type_index]
         elif tag == CONSTANT_Integer:
             integer = self._read_byte4()
-            return tag, integer
+            return [tag, integer]
         elif tag == CONSTANT_Float:
             bytes = self._read_byte4()
             if bytes == 0x7f800000:
@@ -90,31 +87,31 @@ class ClassReader:
                 e = ((bytes >> 23) & 0xff)
                 m = ((bytes & 0x7fffff) << 1) if e == 0 else (bytes & 0x7fffff) | 0x800000
                 value = s * e * m * float('2e-150')
-            return tag, value
+            return [tag, value]
         elif tag == CONSTANT_Double:
             high_bytes = self._read_byte4()
             low_bytes = self._read_byte4()
-            bytes = (high_bytes<<32)+low_bytes
-            if bytes == 0x7ff0000000000000L:
+            if high_bytes == 0x7ff00000 and low_bytes == 0x00000000:
                 value = float('+inf')
-            elif bytes == 0xfff0000000000000L:
+            elif high_bytes == 0xfff00000 and low_bytes == 00000000:
                 value = float('-inf')
-            elif 0x7ff0000000000001L <= bytes <= 0x7fffffffffffffffL or 0xfff0000000000001L <= bytes <= 0xffffffffffffffffL:
+            elif (0x7ff00000 <= high_bytes <= 0x7fffffff) or (0xfff00000 <= high_bytes <= 0xffffffff):
                 value = float('nan')
             else:
+                bytes = (high_bytes<<32)+low_bytes
                 s = 1 if ((bytes >> 63) == 0) else -1
                 e = ((bytes >> 52) & 0x7ffL)
                 m = ((bytes & 0xfffffffffffffL) << 1) if e == 0 else (bytes & 0xfffffffffffffL) | 0x10000000000000L
                 value = s * e * m * float('2e-150')
-            return tag, value
+            return [tag, value]
         elif tag == CONSTANT_Long:
             high_bytes = self._read_byte4()
             low_bytes = self._read_byte4()
-            return tag, (high_bytes<<32) + low_bytes
+            return [tag, (high_bytes<<32) + low_bytes]
         elif tag == CONSTANT_NameAndType:
             name_index = self._read_byte2()
             descriptor_index = self._read_byte2()
-            return tag, name_index, descriptor_index
+            return [tag, name_index, descriptor_index]
         elif tag == CONSTANT_Utf8:
             length = self._read_byte2()
             string = ''
@@ -147,18 +144,18 @@ class ClassReader:
                     codepoint = 0x10000 + ((v & 0x0f) << 16) + ((w & 0x3f) << 10) + ((y & 0x0f) << 6) + (z & 0x3f)
 
                 string += unichr(codepoint)
-            return tag, string
+            return [tag, string]
         elif tag == CONSTANT_MethodHandle:
             reference_handle = self._read_byte()
             reference_index = self._read_byte2()
-            return tag, reference_handle, reference_index
+            return [tag, reference_handle, reference_index]
         elif tag == CONSTANT_MethodType:
             descriptor_index = self._read_byte2()
-            return tag, descriptor_index
+            return [tag, descriptor_index]
         elif tag == CONSTANT_InvokeDynamic:
             bootstrap_method_attr_index = self._read_byte2()
             name_and_type_index = self._read_byte22()
-            return tag, bootstrap_method_attr_index, name_and_type_index
+            return [tag, bootstrap_method_attr_index, name_and_type_index]
         else:
             raise Exception('Unknown tag in constant pool %s' % tag)
 
@@ -496,17 +493,15 @@ class ClassReader:
 
     def _read_byte(self):
         self.offset +=1
-        return ord(self.file_reader.read(1))
+        return ord(self.file_reader[self.offset-1])
 
     def _read_byte2(self):
-        self.offset += 2
-        return ord(self.file_reader.read(1)) << 8 | ord(self.file_reader.read(1))
+        return (self._read_byte() << 8) | self._read_byte()
 
     def _read_byte4(self):
-        self.offset += 4
         value = 0
         for i in xrange(4):
-            value = value << 8 | ord(self.file_reader.read(1))
+            value = value << 8 | self._read_byte()
         return value
 
 if __name__ == '__main__':
