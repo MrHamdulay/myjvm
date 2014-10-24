@@ -108,7 +108,7 @@ def iadd(vm, klass, method, frame, offset, bytecode, pc):
 def isub(vm, klass, method, frame, offset, bytecode, pc):
     a, b = frame.pop(), frame.pop()
     assert isinstance(a, int) and isinstance(b, int)
-    frame.push(a-b)
+    frame.push(b-a)
 
 @register_bytecode(126)
 def iand(vm, klass, method, frame, offset, bytecode, pc):
@@ -131,7 +131,7 @@ def zero_comparison(name, operator):
         assert isinstance(a, int)
         if operator(a, 0):
             return decode_signed_offset(bytecode, pc)
-        return pc+1
+        return pc+2
     comparison.__name__ = name
     return comparison
 
