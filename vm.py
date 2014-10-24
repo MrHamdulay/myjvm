@@ -52,7 +52,7 @@ class VM:
         return (bytecode[index+1]<<8) | (bytecode[index+2])
 
     def resolve_field(self, current_klass, ref_index, expected_field_types=None):
-        field_type, field  = current_klass.constant_pool.get_object(0, ref_index)
+        field_type, field, _  = current_klass.constant_pool.get_object(0, ref_index)
         if expected_field_types:
             assert field_type in expected_field_types
         if field_type == 'String':
@@ -75,7 +75,7 @@ class VM:
     def run_bytecode(self, current_klass, method, bytecode, frame):
         pc = 0
         while pc < len(bytecode):
-            logging.debug( 'stackframe %s'% frame.stack)
+            logging.debug( 'stackframe %s    locals %s'% (frame.stack, frame.local_variables))
             bc = bytecode[pc]
             if bc in bytecodes:
                 start, bytecode_function, has_constant_pool_index = bytecodes[bc]
@@ -88,7 +88,7 @@ class VM:
                 if ret:
                     pc = ret
                 pc += 1
-                if frame.return_value:
+                if frame.return_value is not None:
                     return frame.return_value
             else:
                 raise Exception('Unknown bytecode in class %s.%s: %d' % (current_klass.name, method.name, bytecode[pc]))

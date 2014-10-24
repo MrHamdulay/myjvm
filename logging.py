@@ -1,2 +1,2 @@
 def debug(*args):
-    print args
+    print 'Log: ', ', '.join(args)

@@ -3,7 +3,7 @@ import logging
 
 from classconstants import *
 from classtypes import *
-from constantpool import ConstantPool
+from constantpool import ConstantPool, ConstantPoolItem
 from klass import Class
 
 class MalformedClassException(Exception):
@@ -66,14 +66,14 @@ class ClassReader:
         if tag in (CONSTANT_Class, CONSTANT_String):
             # index into constant pool of type UTF8 that references a class / array type
             name_index = self._read_byte2()
-            return [tag, name_index]
+            return ConstantPoolItem(tag, [name_index])
         elif tag in (CONSTANT_Fieldref, CONSTANT_Methodref, CONSTANT_InterfaceMethodref):
             class_index = self._read_byte2()
             name_and_type_index = self._read_byte2()
-            return [tag, class_index, name_and_type_index]
+            return ConstantPoolItem(tag, [class_index, name_and_type_index])
         elif tag == CONSTANT_Integer:
             integer = self._read_byte4()
-            return [tag, integer]
+            return ConstantPoolItem(tag, [integer])
         elif tag == CONSTANT_Float:
             bytes = self._read_byte4()
             if bytes == 0x7f800000:
@@ -87,7 +87,7 @@ class ClassReader:
                 e = ((bytes >> 23) & 0xff)
                 m = ((bytes & 0x7fffff) << 1) if e == 0 else (bytes & 0x7fffff) | 0x800000
                 value = s * e * m * float('2e-150')
-            return [tag, value]
+            return ConstantPoolItem(tag, [value])
         elif tag == CONSTANT_Double:
             high_bytes = self._read_byte4()
             low_bytes = self._read_byte4()
@@ -103,15 +103,15 @@ class ClassReader:
                 e = ((bytes >> 52) & 0x7ffL)
                 m = ((bytes & 0xfffffffffffffL) << 1) if e == 0 else (bytes & 0xfffffffffffffL) | 0x10000000000000L
                 value = s * e * m * float('2e-150')
-            return [tag, value]
+            return ConstantPoolItem(tag, [value])
         elif tag == CONSTANT_Long:
             high_bytes = self._read_byte4()
             low_bytes = self._read_byte4()
-            return [tag, (high_bytes<<32) + low_bytes]
+            return ConstantPoolItem(tag, [(high_bytes<<32) + low_bytes])
         elif tag == CONSTANT_NameAndType:
             name_index = self._read_byte2()
             descriptor_index = self._read_byte2()
-            return [tag, name_index, descriptor_index]
+            return ConstantPoolItem(tag, [name_index, descriptor_index])
         elif tag == CONSTANT_Utf8:
             length = self._read_byte2()
             string = ''
@@ -144,20 +144,20 @@ class ClassReader:
                     codepoint = 0x10000 + ((v & 0x0f) << 16) + ((w & 0x3f) << 10) + ((y & 0x0f) << 6) + (z & 0x3f)
 
                 string += unichr(codepoint)
-            return [tag, string]
+            return ConstantPoolItem(tag, [], [string])
         elif tag == CONSTANT_MethodHandle:
             reference_handle = self._read_byte()
             reference_index = self._read_byte2()
-            return [tag, reference_handle, reference_index]
+            return ConstantPoolItem(tag, [reference_handle, reference_index])
         elif tag == CONSTANT_MethodType:
             descriptor_index = self._read_byte2()
-            return [tag, descriptor_index]
+            return ConstantPoolItem(tag, [descriptor_index])
         elif tag == CONSTANT_InvokeDynamic:
             bootstrap_method_attr_index = self._read_byte2()
             name_and_type_index = self._read_byte22()
-            return [tag, bootstrap_method_attr_index, name_and_type_index]
-        else:
-            raise Exception('Unknown tag in constant pool %s' % tag)
+            return ConstantPoolItem(tag, [bootstrap_method_attr_index, name_and_type_index])
+
+        raise Exception('Unknown tag in constant pool %s' % tag)
 
     def parse_field(self):
         access_flags = self._read_byte2()
@@ -187,7 +187,7 @@ class ClassReader:
         attribute = None
         if name == 'ConstantValue':
             value_index = self._read_byte2()
-            type, value = self.klass.constant_pool.get_object(0, value_index)
+            type, value, _ = self.klass.constant_pool.get_object(0, value_index)
             attribute = ConstantValueAttribute(value, type)
         elif name == 'Code':
             max_stack = self._read_byte2()

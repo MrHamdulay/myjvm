@@ -154,7 +154,7 @@ class ClassInstance(object):
             return self._values[name]
         if name in self._klass.methods:
             return self._klass.methods[name]
-        raise Exception
+        raise Exception()
 
     def __setattr__(self, name, value):
         if name in self.__dict__ or name[0] == '_':
@@ -167,7 +167,7 @@ class ClassInstance(object):
         pass
 
     def __repr__(self):
-        return '<Instance of %s>' % self._klass_name
+        return '<Instance of "%s" values:%s>' % (self._klass_name, self._values)
 
 class ArrayClass(object):
     _klass = None
