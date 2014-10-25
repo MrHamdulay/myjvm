@@ -73,6 +73,12 @@ def fload(vm, klass, method, frame, offset, bytecode, pc):
 def aload_n(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(frame.local_variables[offset])
 
+@register_bytecode(51)
+def baload(vm, klass, method, frame, offset, bytecode, pc):
+    index, array = frame.pop(), frame.pop()
+    print array
+    raise Exception()
+
 @register_bytecode(55)
 def lstore(vm, klass, method, frame, offset, bytecode, pc):
     index = bytecode[pc+1]
@@ -260,8 +266,8 @@ def anewarray(vm, klass, method, frame, offset, bytecode, pc):
 
 @register_bytecode(198)
 def ifnull(vm, klass, method, frame, offset, bytecode, pc):
-    return decode_signed_offset(bytecode, pc) if frame.pop() is null else 2
+    return decode_signed_offset(bytecode, pc) if frame.pop() is null else pc+2
 
 @register_bytecode(199)
 def ifnonnull(vm, klass, method, frame, offset, bytecode, pc):
-    return decode_signed_offset(bytecode, pc) if frame.pop() is not null else 2
+    return decode_signed_offset(bytecode, pc) if frame.pop() is not null else pc+2
