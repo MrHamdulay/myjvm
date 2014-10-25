@@ -188,13 +188,14 @@ def goto(vm, klass, method, frame, offset, bytecode, pc):
 @register_bytecode(172)
 def ireturn(vm, klass, method, frame, offset, bytecode, pc):
     return_value = int(frame.pop())
-    assert not frame.stack
+    assert not len(frame.stack)
     frame.return_value = return_value
 
 @register_bytecode(176)
 def areturn(vm, klass, method, frame, offset, bytecode, pc):
     return_value = frame.pop()
     assert isinstance(return_value, ClassInstance) or return_value is null
+    assert not len(frame.stack)
     frame.return_value = return_value
 
 @register_bytecode(177)
