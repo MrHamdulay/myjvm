@@ -191,6 +191,12 @@ def ireturn(vm, klass, method, frame, offset, bytecode, pc):
     assert not frame.stack
     frame.return_value = return_value
 
+@register_bytecode(176)
+def areturn(vm, klass, method, frame, offset, bytecode, pc):
+    return_value = frame.pop()
+    assert isinstance(return_value, ClassInstance) or return_value is null
+    frame.return_value = return_value
+
 @register_bytecode(177)
 def return_(vm, klass, method, frame, offset, bytecode, pc):
     assert not frame.stack
