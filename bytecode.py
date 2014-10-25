@@ -43,6 +43,13 @@ def ldc(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(field)
     return pc+1
 
+@register_bytecode(19)
+def ldc_w(vm, klass, method, frame, offset, bytecode, pc):
+    constant_pool_index = (bytecode[pc+1] << 8) +  bytecode[pc+2]
+    field = vm.resolve_field(klass, constant_pool_index)
+    frame.push(field)
+    return pc+2
+
 @register_bytecode(22)
 def iload(vm, klass, method, frame, offset, bytecode, pc):
     local = frame.get_local(bytecode[pc+1])
@@ -180,6 +187,7 @@ def ireturn(vm, klass, method, frame, offset, bytecode, pc):
 
 @register_bytecode(177)
 def return_(vm, klass, method, frame, offset, bytecode, pc):
+    assert not frame.stack
     frame.return_value = void
 
 @register_bytecode(178, has_index=True)

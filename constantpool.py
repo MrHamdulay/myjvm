@@ -48,7 +48,7 @@ class ConstantPool:
         constant = self.constant_pool[index-1]
         if type != constant.tag and type != 0:
             print constant
-            raise ConstantPoolException('Expected %s got %s(%d) %s' % (CONSTANT_POOL_NAMES[type-1], CONSTANT_POOL_NAMES[constant.tag-1], type, constant[1:]))
+            raise ConstantPoolException('Expected %s got %s(%d) %s %s' % (CONSTANT_POOL_NAMES[type-1], CONSTANT_POOL_NAMES[constant.tag-1], type, constant.ints, constant.strings))
         if type == 0:
             return CONSTANT_POOL_NAMES[constant.tag-1], constant.ints, constant.strings
         return constant.ints, constant.strings
