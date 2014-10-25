@@ -90,7 +90,7 @@ def istore_n(vm, klass, method, frame, offset, bytecode, pc):
 @register_bytecode(75, 78)
 def astore(vm, klass, method, frame, offset, bytecode, pc):
     reference = frame.pop()
-    assert isinstance(reference, ClassInstance)
+    assert isinstance(reference, ClassInstance) or reference is null
     frame.insert_local(offset, reference)
 
 @register_bytecode(87)
@@ -257,3 +257,11 @@ def anewarray(vm, klass, method, frame, offset, bytecode, pc):
     assert isinstance(size, int)
     frame.push(ArrayClass(klass, size))
     return pc + 2
+
+@register_bytecode(198)
+def ifnull(vm, klass, method, frame, offset, bytecode, pc):
+    return decode_signed_offset(bytecode, pc) if frame.pop() is null else 2
+
+@register_bytecode(199)
+def ifnonnull(vm, klass, method, frame, offset, bytecode, pc):
+    return decode_signed_offset(bytecode, pc) if frame.pop() is not null else 2
