@@ -56,7 +56,7 @@ class ClassReader:
         method_count = self._read_byte2()
         for i in xrange(method_count):
             method = self.parse_method()
-            klass.methods[method.name] = method
+            klass.methods[Class.method_name(method)] = method
 
         klass.attributes = self.parse_attributes()
 

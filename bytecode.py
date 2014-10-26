@@ -256,6 +256,7 @@ def invokevirtual_special(vm, klass, method, frame, offset, bytecode, pc):
 def new(vm, klass, method, frame, offset, bytecode, pc):
     klass_index = vm.constant_pool_index(bytecode, pc)
     klass_name = klass.constant_pool.get_class(klass_index)
+    logging.debug('creating class %s' % klass_name)
     klass = vm.load_class(klass_name)
     instance = ClassInstance(klass_name, klass)
     frame.push(instance)

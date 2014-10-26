@@ -28,8 +28,9 @@ class Class(object):
         self.attributes = []
 
     def get_method(self, method_name, type_signature):
-        if method_name in self.methods:
-            return self.methods[method_name]
+        built_method_name = Class.method_name(method_name, type_signature)
+        if built_method_name in self.methods:
+            return self.methods[built_method_name]
         raise NoSuchMethodException('No such method %s (%s)' % (method_name, type_signature) )
 
     def instantiate(self):
@@ -57,7 +58,7 @@ class Class(object):
             # method is not static so load instance
             num_args+=1
 
-        if len(vm.stack) < num_args-1:
+        if len(vm.stack[-1].stack) < num_args:
             given_arguments = ' '.join(str(frame.get_local(i)) for i in xrange(num_args-1))
             raise Exception('Not enough arguments in method %s.%s required: %s, Given: %s' %
                     (self.name, method.name, method.descriptor, given_arguments))
@@ -104,6 +105,14 @@ class Class(object):
 
     def __repr__(self):
         return '<Klass %s> ' % self.name
+
+    @staticmethod
+    def method_name(*args):
+        if isinstance(args[0], Method):
+            return '%s__%s' % (args[0].name, args[0].descriptor)
+        elif len(args) == 2:
+            return '%s__%s' % args
+        raise Exception
 
 
 class NativeClass(Class):

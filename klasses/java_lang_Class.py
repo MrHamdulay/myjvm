@@ -9,3 +9,6 @@ def getPrimitiveClass(klass, vm, method, frame):
 
 def getClassLoader0(klass, vm, method, frame):
     return null
+
+def desiredAssertionStatus0(klass, vm, method, frame):
+    return 0

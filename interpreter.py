@@ -16,7 +16,7 @@ class Interpreter:
         self.vm.stack[0].push('java')
 
         # run initial method
-        self.vm.run_method(klass, klass.get_method('main', ''))
+        self.vm.run_method(klass, klass.get_method('main', '([Ljava/lang/String;)V'))
 
 
 
