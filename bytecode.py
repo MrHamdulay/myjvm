@@ -58,6 +58,7 @@ def iload(vm, klass, method, frame, offset, bytecode, pc):
     return pc+1
 
 @register_bytecode(26, 29)
+@register_bytecode(30, 33)
 def iload_n(vm, klass, method, frame, offset, bytecode, pc):
     local = frame.get_local(offset)
     assert isinstance(local, int)
@@ -93,11 +94,24 @@ def istore_n(vm, klass, method, frame, offset, bytecode, pc):
     assert isinstance(local, int)
     frame.insert_local(offset, local)
 
+@register_bytecode(63, 66)
+def lstore_n(vm, klass, method, frame, offset, bytecode, pc):
+    local = frame.pop()
+    assert isinstance(local, int)
+    frame.insert_local(offset, local)
+
 @register_bytecode(75, 78)
 def astore(vm, klass, method, frame, offset, bytecode, pc):
     reference = frame.pop()
     assert isinstance(reference, ClassInstance) or reference is null
     frame.insert_local(offset, reference)
+
+@register_bytecode(79)
+def iastore(vm, klass, method, frame, offset, bytecode, pc):
+    value, index, array = frame.pop(), frame.pop(), frame.pop()
+    assert array is not null
+    assert index >= 0 and index < len(array)
+    array[index] = value
 
 @register_bytecode(87)
 def pop(vm, klass, method, frame, offset, bytecode, pc):
@@ -173,7 +187,15 @@ if_cmpge = register_bytecode(162)(integer_comparison('if_cmpge', operator.ge))
 if_cmpgt = register_bytecode(163)(integer_comparison('if_cmpgt', operator.gt))
 if_cmple = register_bytecode(164)(integer_comparison('if_cmple', operator.le))
 
-@register_bytecode(133)
+@register_bytecode(125)
+def lushr(vm, klass, method, frame, offset, bytecode, pc):
+    shift, value = frame.pop(), frame.pop()
+    assert 0 <= shift <= 63
+    assert isinstance(value, int)
+    frame.push(value >> shift)
+
+@register_bytecode(133) # i2l
+@register_bytecode(136) # l2i
 def i2l(vm, klass, method, frame, offset, bytecode, pc):
     return None
 
@@ -262,6 +284,17 @@ def new(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(instance)
     return pc  + 2
 
+@register_bytecode(188)
+def newarray(vm, klass, method, frame, offset, bytecode, pc):
+    atype = bytecode[pc+1]
+    #types = {4: 'str', 5: 'str', 6: 'float', 7: 'int', 8:
+
+    size = frame.pop()
+    assert isinstance(size, int)
+    assert size >= 0
+    frame.push([0]*size)
+    return pc + 1
+
 @register_bytecode(189)
 def anewarray(vm, klass, method, frame, offset, bytecode, pc):
     klass_name = klass.constant_pool.get_class(vm.constant_pool_index(bytecode, pc))
@@ -269,6 +302,7 @@ def anewarray(vm, klass, method, frame, offset, bytecode, pc):
 
     size = frame.pop()
     assert isinstance(size, int)
+    assert size >= 0
     frame.push(ArrayClass(klass, size))
     return pc + 2
 
