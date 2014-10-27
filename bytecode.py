@@ -50,10 +50,15 @@ def ldc_w(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(field)
     return pc+2
 
-@register_bytecode(22)
+@register_bytecode(21) #iload
+@register_bytecode(22) #lload
+@register_bytecode(25) #aload
 def iload(vm, klass, method, frame, offset, bytecode, pc):
     local = frame.get_local(bytecode[pc+1])
-    assert isinstance(local, int)
+    if bytecode[pc] in (21, 22):
+        assert isinstance(local, int)
+    elif bytecode[pc] == 25:
+        assert isinstance(local, (list, ClassInstance)) or local is null
     frame.push(local)
     return pc+1
 
@@ -74,19 +79,32 @@ def fload(vm, klass, method, frame, offset, bytecode, pc):
 def aload_n(vm, klass, method, frame, offset, bytecode, pc):
     frame.push(frame.local_variables[offset])
 
+@register_bytecode(46) #iaload
+@register_bytecode(47) #laload
+def iaload(vm, klass, method, frame, offset, bytecode, pc):
+    index, array = frame.pop(), frame.pop()
+    assert index >= 0
+    frame.push(array[index])
+
 @register_bytecode(51)
 def baload(vm, klass, method, frame, offset, bytecode, pc):
     index, array = frame.pop(), frame.pop()
     print array
     raise Exception()
 
-@register_bytecode(55)
+@register_bytecode(54) #istore
+@register_bytecode(55) #lstore
+@register_bytecode(58) #astore
 def lstore(vm, klass, method, frame, offset, bytecode, pc):
     index = bytecode[pc+1]
     local = frame.pop()
-    assert isinstance(local, int)
+    if bytecode[pc] in (54, 55):
+        assert isinstance(local, int)
+    elif bytecode[pc] == 58:
+        assert isinstance(local, (list, ClassInstance)) or local is null
     frame.insert_local(index, local)
     return pc + 1
+
 
 @register_bytecode(59, 62)
 def istore_n(vm, klass, method, frame, offset, bytecode, pc):
@@ -136,6 +154,13 @@ def isub(vm, klass, method, frame, offset, bytecode, pc):
     a, b = frame.pop(), frame.pop()
     assert isinstance(a, int) and isinstance(b, int)
     frame.push(b-a)
+
+@register_bytecode(104) #imul
+@register_bytecode(105) #lmul
+def imul(vm, klass, method, frame, offset, bytecode, pc):
+    a, b = frame.pop(), frame.pop()
+    assert isinstance(a, int) and isinstance(b, int)
+    frame.push(a*b)
 
 @register_bytecode(126)
 def iand(vm, klass, method, frame, offset, bytecode, pc):
@@ -187,12 +212,29 @@ if_cmpge = register_bytecode(162)(integer_comparison('if_cmpge', operator.ge))
 if_cmpgt = register_bytecode(163)(integer_comparison('if_cmpgt', operator.gt))
 if_cmple = register_bytecode(164)(integer_comparison('if_cmple', operator.le))
 
-@register_bytecode(125)
-def lushr(vm, klass, method, frame, offset, bytecode, pc):
+@register_bytecode(120) #ishl
+@register_bytecode(121) #lshl
+def ishl(vm, klass, method, frame, offset, bytecode, pc):
+    shift, value = frame.pop(), frame.pop()
+    assert 0 <= shift <= 63
+    assert isinstance(value, int)
+    frame.push(value << shift)
+
+@register_bytecode(124) #iushr
+@register_bytecode(125) #lushr
+def iushr(vm, klass, method, frame, offset, bytecode, pc):
     shift, value = frame.pop(), frame.pop()
     assert 0 <= shift <= 63
     assert isinstance(value, int)
     frame.push(value >> shift)
+
+@register_bytecode(128) #ior
+@register_bytecode(129) #lor
+def ior(vm, klass, method, frame, offset, bytecode, pc):
+    val1, val2 = frame.pop(), frame.pop()
+    assert isinstance(val1, int)
+    assert isinstance(val2, int)
+    frame.push(val1 | val2)
 
 @register_bytecode(133) # i2l
 @register_bytecode(136) # l2i
@@ -305,6 +347,16 @@ def anewarray(vm, klass, method, frame, offset, bytecode, pc):
     assert size >= 0
     frame.push(ArrayClass(klass, size))
     return pc + 2
+
+@register_bytecode(190)
+def arraylength(vm, klass, method, frame, offset, bytecode, pc):
+    arrayref = frame.pop()
+    if isinstance(arrayref, list):
+        frame.push(len(arrayref))
+    elif isinstance(arrayref, ArrayClass):
+        frame.push(arrayref.size)
+    else:
+        raise Exception
 
 @register_bytecode(198)
 def ifnull(vm, klass, method, frame, offset, bytecode, pc):

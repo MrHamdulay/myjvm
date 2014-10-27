@@ -184,3 +184,7 @@ class ArrayClass(object):
     def __init__(self, klass, size):
         self._klass = klass
         self.array = [None] * size
+
+    @property
+    def size(self):
+        return len(self.array)
