@@ -101,7 +101,7 @@ def lstore(vm, klass, method, frame, offset, bytecode, pc):
     index = bytecode[pc+1]
     local = frame.pop()
     if bytecode[pc] in (54, 55):
-        assert isinstance(local, int)
+        assert isinstance(local, (int, long))
     elif bytecode[pc] == 58:
         assert isinstance(local, (list, ClassInstance)) or local is null
     frame.insert_local(index, local)
@@ -128,7 +128,7 @@ def astore(vm, klass, method, frame, offset, bytecode, pc):
 
 @register_bytecode(79)
 def iastore(vm, klass, method, frame, offset, bytecode, pc):
-    value, index, array = frame.pop(), frame.pop(), frame.pop()
+    value, index, array = intmask(frame.pop()), frame.pop(), frame.pop()
     assert array is not null
     assert index >= 0 and index < len(array)
     array[index] = value
@@ -149,17 +149,17 @@ def dup(vm, klass, method, frame, offset, bytecode, pc):
 
 @register_bytecode(96)
 def iadd(vm, klass, method, frame, offset, bytecode, pc):
-    frame.push(intmask(int(frame.pop())+int(frame.pop())))
+    frame.push(intmask(frame.pop()+frame.pop()))
 
 @register_bytecode(100)
 def isub(vm, klass, method, frame, offset, bytecode, pc):
-    a, b = frame.pop(), frame.pop()
+    a, b = intmask(frame.pop()), intmask(frame.pop())
     assert isinstance(a, int) and isinstance(b, int)
     frame.push(intmask(b-a))
 
 @register_bytecode(104)
 def imul(vm, klass, method, frame, offset, bytecode, pc):
-    a, b = frame.pop(), frame.pop()
+    a, b = intmask(frame.pop()), intmask(frame.pop())
     assert isinstance(a, int) and isinstance(b, int)
     frame.push(intmask(a*b))
 
@@ -221,16 +221,14 @@ if_cmple = register_bytecode(164)(integer_comparison('if_cmple', operator.le))
 
 @register_bytecode(120) #ishl
 def ishl(vm, klass, method, frame, offset, bytecode, pc):
-    shift, value = frame.pop(), frame.pop()
+    shift, value = frame.pop(), intmask(frame.pop())
     assert 0 <= shift <= 31
-    assert isinstance(value, int)
     frame.push(intmask(value << shift))
 
 @register_bytecode(121) #lshl
 def lshl(vm, klass, method, frame, offset, bytecode, pc):
     shift, value = frame.pop(), frame.pop()
     assert 0 <= shift <= 63
-    assert isinstance(value, (int, long))
     frame.push(longlongmask(value << shift))
 
 @register_bytecode(124) #iushr
@@ -244,22 +242,27 @@ def iushr(vm, klass, method, frame, offset, bytecode, pc):
 def lushr(vm, klass, method, frame, offset, bytecode, pc):
     shift, value = frame.pop(), frame.pop()
     assert 0 <= shift <= 63
-    assert isinstance(value, (int, long))
     frame.push(longlongmask(value >> shift))
 
 @register_bytecode(128) #ior
 def ior(vm, klass, method, frame, offset, bytecode, pc):
-    val1, val2 = frame.pop(), frame.pop()
-    assert isinstance(val1, int)
-    assert isinstance(val2, int)
+    val1, val2 = intmask(frame.pop()), intmask(frame.pop())
     frame.push(intmask(val1 | val2))
 
 @register_bytecode(129) #lor
 def lor(vm, klass, method, frame, offset, bytecode, pc):
     val1, val2 = frame.pop(), frame.pop()
-    assert isinstance(val1, (int, long))
-    assert isinstance(val2, (int, long))
     frame.push(longlongmask(val1 | val2))
+
+@register_bytecode(130)
+def ixor(vm, klass, method, frame, offset, bytecode, pc):
+    val1, val2 = frame.pop(), frame.pop()
+    frame.push(intmask(val1 ^ val2))
+
+@register_bytecode(131)
+def lxor(vm, klass, method, frame, offset, bytecode, pc):
+    val1, val2 = frame.pop(), frame.pop()
+    frame.push(longlongmask(val1 ^ val2))
 
 @register_bytecode(133) # i2l
 @register_bytecode(136) # l2i
