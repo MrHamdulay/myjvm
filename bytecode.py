@@ -381,6 +381,16 @@ def arraylength(vm, klass, method, frame, offset, bytecode, pc):
     else:
         raise Exception
 
+@register_bytecode(193)
+def instanceof(vm, klass, method, frame, offset, bytecode, pc):
+    objectref = frame.pop()
+    if objectref is null:
+        frame.push(0)
+        return pc+2
+    klass = vm.load_class(klass.constant_pool.get_class(vm.constant_pool_index(bytecode, pc)))
+    frame.push(1 if klass.is_subclass(objectref) else 0)
+
+
 @register_bytecode(198)
 def ifnull(vm, klass, method, frame, offset, bytecode, pc):
     return decode_signed_offset(bytecode, pc) if frame.pop() is null else pc+2

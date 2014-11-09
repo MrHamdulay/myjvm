@@ -30,9 +30,8 @@ class VM:
 
         # load all supers and interfaces
         if klass.super_class:
-            self.load_class(klass.super_class)
-        for interfaces in klass.interfaces:
-            self.load_class(interfaces)
+            klass.super_class = self.load_class(klass.super_class)
+        klass.interfaces = map(self.load_class, klass.interfaces)
 
         # run <clinit> method of class
         try:

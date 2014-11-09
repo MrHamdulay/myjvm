@@ -33,6 +33,14 @@ class Class(object):
             return self.methods[built_method_name]
         raise NoSuchMethodException('No such method %s (%s)' % (method_name, type_signature) )
 
+    def is_subclass(self, instance):
+        print instance
+        klass = instance._klass
+        while klass != self and klass != klass.super_class:
+            klass = klass.super_class
+            print klass
+        return klass == self
+
     def instantiate(self):
         return ClassInstance(self.method_name, self)
 
