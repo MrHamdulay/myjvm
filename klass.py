@@ -89,10 +89,6 @@ class Class(object):
         else:
             assert return_value is void
 
-        if not native_method:
-            print 'locals'
-            for i in xrange(code.max_locals):
-                print 'local %d %s' % (i, frame.get_local(i))
         return return_value
 
 

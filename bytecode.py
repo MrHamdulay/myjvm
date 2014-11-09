@@ -22,7 +22,6 @@ def register_bytecode(start, end=-1, has_index=False):
 
 def decode_signed_offset(bytecode, pc):
     jump = struct.unpack('>h', chr(bytecode[pc+1])+chr(bytecode[pc+2]))[0]+pc-1
-    logging.debug('offset %d' % jump)
     return jump
 
 @register_bytecode(1)
@@ -91,7 +90,6 @@ def iaload(vm, klass, method, frame, offset, bytecode, pc):
 @register_bytecode(51)
 def baload(vm, klass, method, frame, offset, bytecode, pc):
     index, array = frame.pop(), frame.pop()
-    print array
     raise Exception()
 
 @register_bytecode(54) #istore
@@ -205,7 +203,6 @@ def integer_comparison(name, operator):
     def comparison(vm, klass, method, frame, offset, bytecode, pc):
         b, a = frame.pop(), frame.pop()
         assert isinstance(a, int) and isinstance(b, int)
-        logging.debug('comparison %d %s %d' % (a, operator, b))
         if operator(a, b):
             return decode_signed_offset(bytecode, pc)
         return pc+2
@@ -338,7 +335,6 @@ def putfield(vm, klass, method, frame, offset, bytecode, pc):
 def invokevirtual_special(vm, klass, method, frame, offset, bytecode, pc):
     method_index = vm.constant_pool_index(bytecode, pc)
     new_klass, method = vm.resolve_field(klass, method_index)
-    logging.debug('GOT A CLASS %s.%s' % (new_klass, method))
     if bytecode[pc] == 184:
         assert (method.access_flags & ACC_STATIC) != 0
     vm.run_method(new_klass, method)
@@ -348,7 +344,6 @@ def invokevirtual_special(vm, klass, method, frame, offset, bytecode, pc):
 def new(vm, klass, method, frame, offset, bytecode, pc):
     klass_index = vm.constant_pool_index(bytecode, pc)
     klass_name = klass.constant_pool.get_class(klass_index)
-    logging.debug('creating class %s' % klass_name)
     klass = vm.load_class(klass_name)
     instance = ClassInstance(klass_name, klass)
     frame.push(instance)

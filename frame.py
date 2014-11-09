@@ -25,7 +25,6 @@ class Frame:
         assert value is not None
         self.stack.append(value)
         if len(self.stack) > self.max_stack:
-            print self.stack
             raise StackOverflowException('%s > %d' % (len(self.stack), self.max_stack))
 
     def pop(self):
