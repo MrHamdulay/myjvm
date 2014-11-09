@@ -176,6 +176,8 @@ class ClassInstance(object):
         pass
 
     def __repr__(self):
+        if self._klass_name == 'java/lang/String':
+            return '<String "%s">' % (''.join(chr(x) for x in self._values['value']))
         return '<Instance of "%s" values:%s>' % (self._klass_name, self._values)
 
 class ArrayClass(object):
