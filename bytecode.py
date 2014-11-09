@@ -2,6 +2,8 @@ import operator
 import logging
 import struct
 
+from rpython.rlib.rarithmetic import intmask, longlongmask
+
 from classconstants import void, null, ACC_STATIC
 from klass import ClassInstance, ArrayClass
 
@@ -56,7 +58,7 @@ def ldc_w(vm, klass, method, frame, offset, bytecode, pc):
 def iload(vm, klass, method, frame, offset, bytecode, pc):
     local = frame.get_local(bytecode[pc+1])
     if bytecode[pc] in (21, 22):
-        assert isinstance(local, int)
+        assert isinstance(local, (long, int))
     elif bytecode[pc] == 25:
         assert isinstance(local, (list, ClassInstance)) or local is null
     frame.push(local)
@@ -147,33 +149,38 @@ def dup(vm, klass, method, frame, offset, bytecode, pc):
 
 @register_bytecode(96)
 def iadd(vm, klass, method, frame, offset, bytecode, pc):
-    frame.push(int(frame.pop())+int(frame.pop()))
+    frame.push(intmask(int(frame.pop())+int(frame.pop())))
 
 @register_bytecode(100)
 def isub(vm, klass, method, frame, offset, bytecode, pc):
     a, b = frame.pop(), frame.pop()
     assert isinstance(a, int) and isinstance(b, int)
-    frame.push(b-a)
+    frame.push(intmask(b-a))
 
-@register_bytecode(104) #imul
-@register_bytecode(105) #lmul
+@register_bytecode(104)
 def imul(vm, klass, method, frame, offset, bytecode, pc):
     a, b = frame.pop(), frame.pop()
     assert isinstance(a, int) and isinstance(b, int)
-    frame.push(a*b)
+    frame.push(intmask(a*b))
+
+@register_bytecode(105)
+def lmul(vm, klass, method, frame, offset, bytecode, pc):
+    a, b = frame.pop(), frame.pop()
+    assert isinstance(a, (int, long)) and isinstance(b, (int, long))
+    frame.push(longlongmask(a*b))
 
 @register_bytecode(126)
 def iand(vm, klass, method, frame, offset, bytecode, pc):
     a, b = frame.pop(), frame.pop()
     assert isinstance(a, int) and isinstance(b, int)
-    frame.push(a&b)
+    frame.push(intmask(a&b))
 
 @register_bytecode(132)
 def iinc(vm, klass, method, frame, offset, bytecode, pc):
     index, raw_const = bytecode[pc+1], bytecode[pc+2]
     start_value = frame.get_local(index)
     const = struct.unpack('>b', chr(raw_const))[0]
-    frame.insert_local(index, start_value + const)
+    frame.insert_local(index, intmask(start_value + const))
     assert isinstance(start_value, int)
     return pc + 2
 
@@ -213,28 +220,46 @@ if_cmpgt = register_bytecode(163)(integer_comparison('if_cmpgt', operator.gt))
 if_cmple = register_bytecode(164)(integer_comparison('if_cmple', operator.le))
 
 @register_bytecode(120) #ishl
-@register_bytecode(121) #lshl
 def ishl(vm, klass, method, frame, offset, bytecode, pc):
     shift, value = frame.pop(), frame.pop()
-    assert 0 <= shift <= 63
+    assert 0 <= shift <= 31
     assert isinstance(value, int)
-    frame.push(value << shift)
+    frame.push(intmask(value << shift))
 
-@register_bytecode(124) #iushr
-@register_bytecode(125) #lushr
-def iushr(vm, klass, method, frame, offset, bytecode, pc):
+@register_bytecode(121) #lshl
+def lshl(vm, klass, method, frame, offset, bytecode, pc):
     shift, value = frame.pop(), frame.pop()
     assert 0 <= shift <= 63
+    assert isinstance(value, (int, long))
+    frame.push(longlongmask(value << shift))
+
+@register_bytecode(124) #iushr
+def iushr(vm, klass, method, frame, offset, bytecode, pc):
+    shift, value = frame.pop(), frame.pop()
+    assert 0 <= shift <= 31
     assert isinstance(value, int)
-    frame.push(value >> shift)
+    frame.push(intmask(value >> shift))
+
+@register_bytecode(125) #lushr
+def lushr(vm, klass, method, frame, offset, bytecode, pc):
+    shift, value = frame.pop(), frame.pop()
+    assert 0 <= shift <= 63
+    assert isinstance(value, (int, long))
+    frame.push(longlongmask(value >> shift))
 
 @register_bytecode(128) #ior
-@register_bytecode(129) #lor
 def ior(vm, klass, method, frame, offset, bytecode, pc):
     val1, val2 = frame.pop(), frame.pop()
     assert isinstance(val1, int)
     assert isinstance(val2, int)
-    frame.push(val1 | val2)
+    frame.push(intmask(val1 | val2))
+
+@register_bytecode(129) #lor
+def lor(vm, klass, method, frame, offset, bytecode, pc):
+    val1, val2 = frame.pop(), frame.pop()
+    assert isinstance(val1, (int, long))
+    assert isinstance(val2, (int, long))
+    frame.push(longlongmask(val1 | val2))
 
 @register_bytecode(133) # i2l
 @register_bytecode(136) # l2i
