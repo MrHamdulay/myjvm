@@ -1,5 +1,7 @@
 import os.path
 try:
+    # let's not use rzipfile for now (it's really really slow in python)
+    raise Exception
     from rpython.rlib.rzipfile import RZipFile
     ZipFile = RZipFile
 except:
@@ -11,7 +13,6 @@ from classreader import ClassReader
 class DefaultClassLoader:
     def __init__(self, classpath):
         self.classpath = classpath
-        print classpath
         self.lazy_classes = {}
 
     def load_jar(self, jarfilename):
