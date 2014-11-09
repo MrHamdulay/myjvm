@@ -8,6 +8,7 @@ class Frame:
     local_variables = None
 
     def __init__(self, this=None, parameters=[], max_stack=1, max_locals=0):
+        self.raised_exception = None
         self.stack = []
         self.local_variables = [None] * max_locals
         self.return_value = None

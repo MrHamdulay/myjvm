@@ -88,6 +88,9 @@ class Class(object):
         else:
             return_value = vm.run_bytecode(self, method, code.code, frame)
 
+        if frame.raised_exception is not None:
+            raise Exception('we dont handle this case yet')
+
         # TODO: check for frame return value somehow
 
         vm.stack.pop()

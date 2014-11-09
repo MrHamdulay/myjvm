@@ -6,6 +6,7 @@ from klass import NoSuchMethodException, ClassInstance, Class
 from classconstants import *
 from descriptor import parse_descriptor
 from klasses import primitive_classes
+from utils import get_attribute
 
 from bytecode import bytecodes
 
@@ -70,6 +71,24 @@ class VM:
         else:
             raise Exception('unknown field type %s' % field_type)
 
+    def handle_exception(self, klass, frame, method, pc):
+        if frame.raised_exception is not None:
+            print pc
+            print frame.raised_exception
+            exceptions = get_attribute(method, 'CodeAttribute').exceptions
+            print exceptions
+            for start_pc, end_pc, jump_pc, thrown_class in exceptions:
+                if start_pc <= pc < end_pc:
+                    klass_name = klass.constant_pool.get_class(thrown_class)
+                    resolved_thrown_class = self.load_class(klass_name)
+                    print resolved_thrown_class
+                    if resolved_thrown_class.is_subclass(frame.raised_exception):
+                        print 'jumping to', jump_pc
+                        frame.push(frame.raised_exception)
+                        frame.raised_exception = None
+                        return jump_pc
+        raise Exception
+
 
     def run_bytecode(self, current_klass, method, bytecode, frame):
         pc = 0
@@ -85,7 +104,10 @@ class VM:
                 ret = bytecode_function(self, current_klass, method, frame, bc - start, bytecode, pc)
                 if ret:
                     pc = ret
-                pc += 1
+                if frame.raised_exception:
+                    pc = self.handle_exception(current_klass, frame, method, pc)
+                else:
+                    pc += 1
                 if frame.return_value is not None:
                     return frame.return_value
             else:

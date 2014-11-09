@@ -381,6 +381,10 @@ def arraylength(vm, klass, method, frame, offset, bytecode, pc):
     else:
         raise Exception
 
+@register_bytecode(191)
+def athrow(vm, klass, method, frame, offset, bytecode, pc):
+    frame.raised_exception = frame.pop()
+
 @register_bytecode(193)
 def instanceof(vm, klass, method, frame, offset, bytecode, pc):
     objectref = frame.pop()
