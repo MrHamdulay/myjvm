@@ -389,6 +389,7 @@ def instanceof(vm, klass, method, frame, offset, bytecode, pc):
         return pc+2
     klass = vm.load_class(klass.constant_pool.get_class(vm.constant_pool_index(bytecode, pc)))
     frame.push(1 if klass.is_subclass(objectref) else 0)
+    return pc+2
 
 
 @register_bytecode(198)

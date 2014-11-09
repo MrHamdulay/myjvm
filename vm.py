@@ -77,6 +77,10 @@ class VM:
             bc = bytecode[pc]
             if bc in bytecodes:
                 start, bytecode_function, has_constant_pool_index = bytecodes[bc]
+                logging.debug('pc: %d (%s.%s (%s)) calling bytecode %s' % (pc, current_klass.name, method.name, method.descriptor, bytecode_function.__name__))
+                if has_constant_pool_index:
+                    logging.debug('with constant pool argument %s' %
+                            (current_klass.constant_pool.get_object(0, self.constant_pool_index(bytecode, pc)), ))
 
                 ret = bytecode_function(self, current_klass, method, frame, bc - start, bytecode, pc)
                 if ret:
