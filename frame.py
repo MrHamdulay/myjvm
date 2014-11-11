@@ -8,19 +8,21 @@ class Frame:
     local_variables = None
 
     def __init__(self, this=None, parameters=[], max_stack=1, max_locals=0):
-        self.raised_exception = None
         self.stack = []
         self.local_variables = [None] * max_locals
+
+        self.raised_exception = None
         self.return_value = None
+        self.pc = 0
+
+        self.max_stack=max_stack
+        self.max_locals=max_locals
+
         i=0
         if this:
             self.local_variables[i] = this
             i+=1
-        for param in parameters:
-            self.local_variables[i] = param
-            i += 1
-        self.max_stack=max_stack
-        self.max_locals=max_locals
+        self.local_variables[i:len(parameters)+i] = parameters
 
     def push(self, value):
         assert value is not None

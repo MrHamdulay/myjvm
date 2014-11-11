@@ -5,7 +5,7 @@ import struct
 from rpython.rlib.rarithmetic import intmask, longlongmask
 
 from classconstants import void, null, ACC_STATIC
-from klass import ClassInstance, ArrayClass
+from klass import Class, ClassInstance, ArrayClass
 
 bytecodes = {}
 def register_bytecode(start, end=-1, has_index=False):
@@ -78,7 +78,9 @@ def fload(vm, klass, method, frame, offset, bytecode, pc):
 
 @register_bytecode(42, 45)
 def aload_n(vm, klass, method, frame, offset, bytecode, pc):
-    frame.push(frame.local_variables[offset])
+    val = frame.local_variables[offset]
+    assert isinstance(val, (Class, ClassInstance)) or val is null
+    frame.push(val)
 
 @register_bytecode(46) #iaload
 @register_bytecode(47) #laload
@@ -348,7 +350,7 @@ def new(vm, klass, method, frame, offset, bytecode, pc):
     klass_index = vm.constant_pool_index(bytecode, pc)
     klass_name = klass.constant_pool.get_class(klass_index)
     klass = vm.load_class(klass_name)
-    instance = ClassInstance(klass_name, klass)
+    instance = klass.instantiate()
     frame.push(instance)
     return pc  + 2
 

@@ -42,44 +42,36 @@ class Class(object):
     def instantiate(self):
         return ClassInstance(self.method_name, self)
 
+    @staticmethod
+    def fetch_native_method(class_name, method):
+        assert method.access_flags & ACC_NATIVE
+        assert not hasattr(method, 'code')
+        try:
+            native_method = getattr(classes_with_natives[class_name], method.name)
+        except (KeyError, AttributeError):
+            raise Exception('Missing method %s on class %s' % (method.name, class_name))
+        method.attributes.append(CodeAttribute(100, 100, [], [], []))
+        return native_method
+
     def run_method(self, vm, method, method_descriptor):
         native_method = None
         # handle native methods
         if (method.access_flags & ACC_NATIVE) != 0:
-            assert not hasattr(method, 'code')
-            try:
-                native_method = getattr(classes_with_natives[self.name], method.name)
-            except (KeyError, AttributeError):
-                raise Exception('Missing method %s on class %s' % (method.name, self.name))
-            method.attributes.append(CodeAttribute(100, 100, [], [], []))
-        # yup, our stack has infinite depth. Contains only frames
+            native_method = Class.fetch_native_method(self.name, method)
+
         code = get_attribute(method, 'Code')
 
-        frame = Frame(max_stack=code.max_stack, max_locals=code.max_locals)
 
         method_arguments, method_return_type = parse_descriptor(method.descriptor)
-        num_args = len(method_arguments)
+        # may contain an instance argument (not STATIC
+        num_args = len(method_arguments) + (1 if (method.access_flags & ACC_STATIC == 0) else 0)
+        print self.name, method.name, 'not static' if (method.access_flags & ACC_STATIC == 0) else 'static'
+        print vm.frame_stack[-1].stack
+        arguments = [vm.frame_stack[-1].pop() for i in xrange(num_args)][::-1]
+        print arguments
+        frame = Frame(parameters=arguments, max_stack=code.max_stack, max_locals=code.max_locals)
 
-        if (method.access_flags & ACC_STATIC ) == 0:
-            # method is not static so load instance
-            num_args+=1
-
-        if len(vm.stack[-1].stack) < num_args:
-            given_arguments = ' '.join(str(frame.get_local(i)) for i in xrange(num_args-1))
-            raise Exception('Not enough arguments in method %s.%s required: %s, Given: %s' %
-                    (self.name, method.name, method.descriptor, given_arguments))
-
-        #logging.debug('stack before adding methods %s' % vm.stack[-1].stack)
-        while num_args > 0:
-            num_args -= 1
-            frame.insert_local(num_args, vm.stack[-1].pop())
-
-        #logging.debug('calling method with stack: %s' % frame.stack)
-        #logging.debug('calling method with locals: %s' % frame.local_variables)
-
-
-        vm.stack.append(frame)
-
+        vm.frame_stack.append(frame)
 
         if native_method:
             return_value = native_method(self, vm, method, frame)
@@ -89,12 +81,12 @@ class Class(object):
         if frame.raised_exception is not None:
             raise Exception('we dont handle this case yet')
 
-        # TODO: check for frame return value somehow
+        vm.frame_stack.pop()
 
-        vm.stack.pop()
         # if it's a non-void method put return value on top of stack
         if method_return_type != 'V':
-            vm.stack[-1].push(return_value)
+            assert return_value is not void
+            vm.frame_stack[-1].push(return_value)
         else:
             assert return_value is void
 
@@ -157,6 +149,7 @@ class ClassInstance(object):
     _values = None
 
     def __init__(self, klass_name, klass):
+        assert isinstance(klass, Class)
         self._values = {}
         self._klass = klass
         self._klass_name = klass_name
@@ -189,6 +182,7 @@ class ArrayClass(object):
     _klass = None
 
     def __init__(self, klass, size):
+        assert isinstance(klass, Class)
         self._klass = klass
         self.array = [None] * size
 

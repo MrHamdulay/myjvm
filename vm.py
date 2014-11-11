@@ -16,7 +16,7 @@ class VM:
         self.class_loader = DefaultClassLoader(classpath)
 
         # initial empty frame
-        self.stack = [Frame()]
+        self.frame_stack = [Frame()]
         self.heap = []
 
     def load_class(self, class_name):
@@ -92,12 +92,14 @@ class VM:
                         frame.push(frame.raised_exception)
                         frame.raised_exception = None
                         return jump_pc
-        raise Exception
+            raise Exception
+        return pc
 
 
     def run_bytecode(self, current_klass, method, bytecode, frame):
         pc = 0
         while pc < len(bytecode):
+            print current_klass.name, method.name, 'stack', frame.stack
             bc = bytecode[pc]
             if bc in bytecodes:
                 start, bytecode_function, has_constant_pool_index = bytecodes[bc]
