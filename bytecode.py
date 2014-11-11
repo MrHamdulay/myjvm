@@ -314,8 +314,11 @@ def getfield(vm, klass, method, frame, offset, bytecode, pc):
     field_klass, field_name, field_descriptor = vm.resolve_field(klass,
             field_index, 'Fieldref')
     objectref = frame.pop()
-    assert isinstance(objectref, ClassInstance)
-    frame.push( objectref.__getattr__(field_name))
+    if objectref is null:
+        vm.throw_exception(frame, 'java/lang/NullPointerException')
+    else:
+        assert isinstance(objectref, ClassInstance)
+        frame.push( objectref.__getattr__(field_name))
     return pc + 2
 
 
@@ -325,7 +328,7 @@ def putfield(vm, klass, method, frame, offset, bytecode, pc):
     field_klass, field_name, field_descriptor = vm.resolve_field(klass,
             field_index, 'Fieldref')
     value, objectref = frame.pop(), frame.pop()
-    assert isinstance(objectref, ClassInstance)
+    assert isinstance(objectref, ClassInstance) or objectref is null
     objectref.__setattr__(field_name, value)
     return pc + 2
 
@@ -403,3 +406,13 @@ def ifnull(vm, klass, method, frame, offset, bytecode, pc):
 @register_bytecode(199)
 def ifnonnull(vm, klass, method, frame, offset, bytecode, pc):
     return decode_signed_offset(bytecode, pc) if frame.pop() is not null else pc+2
+
+@register_bytecode(194)
+def monitorenter(vm, klass, method, frame, offset, bytecode, pc):
+    frame.pop()
+    # null op while we don't support threads
+
+@register_bytecode(195)
+def monitorexit(vm, klass, method, frame, offset, bytecode, pc):
+    frame.pop()
+    # null op while we don't support threads

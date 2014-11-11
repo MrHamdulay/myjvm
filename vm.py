@@ -71,6 +71,11 @@ class VM:
         else:
             raise Exception('unknown field type %s' % field_type)
 
+    def throw_exception(self, frame, klass_name):
+        exception = self.load_class(klass_name).instantiate()
+        frame.push(exception)
+        frame.raised_exception = exception
+
     def handle_exception(self, klass, frame, method, pc):
         if frame.raised_exception is not None:
             print pc

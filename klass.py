@@ -34,11 +34,9 @@ class Class(object):
         raise NoSuchMethodException('No such method %s (%s)' % (method_name, type_signature) )
 
     def is_subclass(self, instance):
-        print instance
         klass = instance._klass
         while klass != self and klass != klass.super_class:
             klass = klass.super_class
-            print klass
         return klass == self
 
     def instantiate(self):
