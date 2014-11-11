@@ -65,10 +65,7 @@ class Class(object):
         method_arguments, method_return_type = parse_descriptor(method.descriptor)
         # may contain an instance argument (not STATIC
         num_args = len(method_arguments) + (1 if (method.access_flags & ACC_STATIC == 0) else 0)
-        print self.name, method.name, 'not static' if (method.access_flags & ACC_STATIC == 0) else 'static'
-        print vm.frame_stack[-1].stack
         arguments = [vm.frame_stack[-1].pop() for i in xrange(num_args)][::-1]
-        print arguments
         frame = Frame(parameters=arguments, max_stack=code.max_stack, max_locals=code.max_locals)
 
         vm.frame_stack.append(frame)

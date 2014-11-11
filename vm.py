@@ -76,14 +76,14 @@ class VM:
         frame.push(exception)
         frame.raised_exception = exception
 
-    def handle_exception(self, klass, frame, method, pc):
+    def handle_exception(self, klass, frame, method):
         if frame.raised_exception is not None:
-            print pc
+            print frame.pc
             print frame.raised_exception
             exceptions = get_attribute(method, 'CodeAttribute').exceptions
             print exceptions
             for start_pc, end_pc, jump_pc, thrown_class in exceptions:
-                if start_pc <= pc < end_pc:
+                if start_pc <= frame.pc < end_pc:
                     klass_name = klass.constant_pool.get_class(thrown_class)
                     resolved_thrown_class = self.load_class(klass_name)
                     print resolved_thrown_class
@@ -91,32 +91,30 @@ class VM:
                         print 'jumping to', jump_pc
                         frame.push(frame.raised_exception)
                         frame.raised_exception = None
-                        return jump_pc
-            raise Exception
-        return pc
+                        frame.pc = jump_pc
+            raise Exception('unable to handle exception')
 
 
     def run_bytecode(self, current_klass, method, bytecode, frame):
-        pc = 0
-        while pc < len(bytecode):
+        frame.pc = 0
+        while frame.pc < len(bytecode):
             print current_klass.name, method.name, 'stack', frame.stack
-            bc = bytecode[pc]
+            bc = bytecode[frame.pc]
             if bc in bytecodes:
                 start, bytecode_function, has_constant_pool_index = bytecodes[bc]
-                logging.debug('pc: %d (%s.%s (%s)) calling bytecode %s' % (pc, current_klass.name, method.name, method.descriptor, bytecode_function.__name__))
+                logging.debug('pc: %d (%s.%s (%s)) calling bytecode %s' % (frame.pc, current_klass.name, method.name, method.descriptor, bytecode_function.__name__))
                 if has_constant_pool_index:
                     logging.debug('with constant pool argument %s' %
-                            (current_klass.constant_pool.get_object(0, self.constant_pool_index(bytecode, pc)), ))
+                            (current_klass.constant_pool.get_object(0, self.constant_pool_index(bytecode, frame.pc)), ))
 
-                ret = bytecode_function(self, current_klass, method, frame, bc - start, bytecode, pc)
-                if ret:
-                    pc = ret
+                ret = bytecode_function(self, current_klass, method, frame, bc - start, bytecode)
                 if frame.raised_exception:
-                    pc = self.handle_exception(current_klass, frame, method, pc)
+                    self.handle_exception(current_klass, frame, method)
                 else:
-                    pc += 1
+                    frame.pc += 1
+
                 if frame.return_value is not None:
                     return frame.return_value
             else:
-                raise Exception('Unknown bytecode in class %s.%s: %d' % (current_klass.name, method.name, bytecode[pc]))
+                raise Exception('Unknown bytecode in class %s.%s: %d' % (current_klass.name, method.name, bytecode[frame.pc]))
         return void
