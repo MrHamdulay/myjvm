@@ -1,6 +1,7 @@
 import sys
 import logging
 
+from descriptor import parse_descriptor
 from classconstants import *
 from classtypes import *
 from constantpool import ConstantPool, ConstantPoolItem
@@ -488,7 +489,8 @@ class ClassReader:
         name = self.klass.constant_pool.get_string(name_index)
         attributes = self.parse_attributes()
 
-        return Method(access_flags, name, descriptor, attributes)
+        parameters, return_type = parse_descriptor(descriptor)
+        return Method(access_flags, name, descriptor, attributes, parameters, return_type)
 
 
     def _read_byte(self):
