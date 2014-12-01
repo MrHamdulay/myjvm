@@ -77,22 +77,47 @@ class VM:
         frame.push(exception)
         frame.raised_exception = exception
 
-    def handle_exception(self, klass, frame, method):
-        if frame.raised_exception is not None:
+    def handle_exception(self):
+        frame = self.frame_stack[-1]
+        raised_exception = frame.raised_exception
+        if raised_exception is None:
+            return
+
+        # unroll the stack to build this eception
+        found = False
+        while self.frame_stack:
+            frame = self.frame_stack[-1]
             print frame.pc
-            print frame.raised_exception
-            exceptions = get_attribute(method, 'CodeAttribute').exceptions
-            print exceptions
+            print 'exception', raised_exception
+            print 'current frame', frame
+            print 'current frame method', frame.method
+            exceptions = get_attribute(frame.method, 'CodeAttribute').exceptions
+            print 'exceptions', exceptions
             for start_pc, end_pc, jump_pc, thrown_class in exceptions:
                 if start_pc <= frame.pc < end_pc:
-                    klass_name = klass.constant_pool.get_class(thrown_class)
-                    resolved_thrown_class = self.load_class(klass_name)
-                    print resolved_thrown_class
-                    if resolved_thrown_class.is_subclass(frame.raised_exception):
+                    print 'thrown class', thrown_class
+                    caught = False
+                    if thrown_class == 0:
+                        caught = True
+                    else:
+                        klass_name = frame.klass.constant_pool.get_class(thrown_class)
+                        resolved_thrown_class = self.load_class(klass_name)
+                        print resolved_thrown_class
+                        caught = resolved_thrown_class.is_subclass(raised_exception)
+
+                    if caught:
                         print 'jumping to', jump_pc
-                        frame.push(frame.raised_exception)
+                        frame.push(raised_exception)
                         frame.raised_exception = None
                         frame.pc = jump_pc
+                        found = True
+                        break
+            if found:
+                break
+            logging.debug('exception not handled at %s.%s, popping frame' % (frame.klass.name, frame.method.name))
+            logging.debug('with exception table of %s' % exceptions)
+            self.frame_stack.pop()
+        if not found:
             raise Exception('unable to handle exception')
 
 
@@ -129,7 +154,7 @@ class VM:
 
                 bytecode_function(self, frame.klass, frame.method, frame, bc - start, frame.code.code)
                 if frame.raised_exception:
-                    self.handle_exception(frame.klass, frame, frame.method)
+                    self.handle_exception()
                 else:
                     frame.pc += 1
 

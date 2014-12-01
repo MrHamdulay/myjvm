@@ -40,7 +40,7 @@ class Class(object):
         return klass == self
 
     def instantiate(self):
-        return ClassInstance(self.method_name, self)
+        return ClassInstance(self.name, self)
 
     @staticmethod
     def fetch_native_method(class_name, method):
@@ -133,6 +133,7 @@ class ClassInstance(object):
 
     def __init__(self, klass_name, klass):
         assert isinstance(klass, Class)
+        assert klass_name == klass.name
         self._values = {}
         self._klass = klass
         self._klass_name = klass_name
