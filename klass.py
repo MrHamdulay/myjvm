@@ -4,7 +4,6 @@ from utils import get_attribute
 from constantpool import ConstantPool
 from classtypes import CodeAttribute, Method
 from classconstants import ACC_STATIC, ACC_NATIVE, void
-from frame import Frame
 from descriptor import parse_descriptor
 from klasses import classes_with_natives
 
@@ -173,3 +172,5 @@ class ArrayClass(object):
     @property
     def size(self):
         return len(self.array)
+
+from frame import Frame

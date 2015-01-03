@@ -2,19 +2,20 @@ import operator
 import logging
 import struct
 
+bytecodes = {}
+
 from rpython.rlib.rarithmetic import intmask, longlongmask
 
 from classconstants import void, null, ACC_STATIC
 from klass import Class, ClassInstance, ArrayClass
 
-bytecodes = {}
-def register_bytecode(start, end=-1, has_index=False):
+def register_bytecode(start, end=-1, use_next=0):
     def decorator(f):
         if decorator.end == -1:
             decorator.end = decorator.start
         for i in xrange(decorator.start, decorator.end+1):
             assert i not in bytecodes
-            bytecodes[i] = (decorator.start, f, has_index)
+            bytecodes[i] = (decorator.start, f, use_next)
         return f
     decorator.start = start
     decorator.end = end
@@ -32,28 +33,28 @@ def aconst_null(vm, klass, method, frame, offset, bytecode):
 def iconst_n(vm, klass, method, frame, offset, bytecode):
     frame.push(offset-1)
 
-@register_bytecode(16)
+@register_bytecode(16, use_next=1)
 def bipush(vm, klass, method, frame, offset, bytecode):
     frame.push(bytecode[frame.pc+1])
     frame.pc = frame.pc+1
 
-@register_bytecode(18)
+@register_bytecode(18, use_next=1)
 def ldc(vm, klass, method, frame, offset, bytecode):
     constant_pool_index = bytecode[frame.pc+1]
     field = vm.resolve_field(klass, constant_pool_index)
     frame.push(field)
     frame.pc = frame.pc+1
 
-@register_bytecode(19)
+@register_bytecode(19, use_next=2)
 def ldc_w(vm, klass, method, frame, offset, bytecode):
     constant_pool_index = (bytecode[frame.pc+1] << 8) +  bytecode[frame.pc+2]
     field = vm.resolve_field(klass, constant_pool_index)
     frame.push(field)
     frame.pc = frame.pc+2
 
-@register_bytecode(21) #iload
-@register_bytecode(22) #lload
-@register_bytecode(25) #aload
+@register_bytecode(21, use_next=1) #iload
+@register_bytecode(22, use_next=1) #lload
+@register_bytecode(25, use_next=1) #aload
 def iload(vm, klass, method, frame, offset, bytecode):
     local = frame.get_local(bytecode[frame.pc+1])
     if bytecode[frame.pc] in (21, 22):
@@ -94,9 +95,9 @@ def baload(vm, klass, method, frame, offset, bytecode):
     index, array = frame.pop(), frame.pop()
     raise Exception()
 
-@register_bytecode(54) #istore
-@register_bytecode(55) #lstore
-@register_bytecode(58) #astore
+@register_bytecode(54, use_next=1) #istore
+@register_bytecode(55, use_next=1) #lstore
+@register_bytecode(58, use_next=1) #astore
 def lstore(vm, klass, method, frame, offset, bytecode):
     index = bytecode[frame.pc+1]
     local = frame.pop()
@@ -175,7 +176,7 @@ def iand(vm, klass, method, frame, offset, bytecode):
     assert isinstance(a, int) and isinstance(b, int)
     frame.push(intmask(a&b))
 
-@register_bytecode(132)
+@register_bytecode(132, use_next=2)
 def iinc(vm, klass, method, frame, offset, bytecode):
     index, raw_const = bytecode[frame.pc+1], bytecode[frame.pc+2]
     start_value = frame.get_local(index)
@@ -296,14 +297,14 @@ def return_(vm, klass, method, frame, offset, bytecode):
     assert not frame.stack
     frame.return_value = void
 
-@register_bytecode(178, has_index=True)
+@register_bytecode(178, use_next=2)
 def getstatic(vm, klass, method, frame, offset, bytecode):
     ref_index = vm.constant_pool_index(bytecode, frame.pc)
     field_klass, field_name, field_descriptor = vm.resolve_field(klass, ref_index)
     frame.push(field_klass.field_values[field_name])
     frame.pc = frame.pc + 2
 
-@register_bytecode(179, has_index=True)
+@register_bytecode(179, use_next=2)
 def putstatic(vm, klass, method, frame, offset, bytecode):
     ref_index = vm.constant_pool_index(bytecode, frame.pc)
     field_klass, field_name, field_descriptor = vm.resolve_field(klass, ref_index)
@@ -312,7 +313,7 @@ def putstatic(vm, klass, method, frame, offset, bytecode):
     field_klass.field_values[field_name] = value
     frame.pc = frame.pc + 2
 
-@register_bytecode(180)
+@register_bytecode(180, use_next=2)
 def getfield(vm, klass, method, frame, offset, bytecode):
     field_index = vm.constant_pool_index(bytecode, frame.pc)
     field_klass, field_name, field_descriptor = vm.resolve_field(klass,
@@ -326,7 +327,7 @@ def getfield(vm, klass, method, frame, offset, bytecode):
     frame.pc = frame.pc + 2
 
 
-@register_bytecode(181)
+@register_bytecode(181, use_next=2)
 def putfield(vm, klass, method, frame, offset, bytecode):
     field_index = vm.constant_pool_index(bytecode, frame.pc)
     field_klass, field_name, field_descriptor = vm.resolve_field(klass,
@@ -336,9 +337,9 @@ def putfield(vm, klass, method, frame, offset, bytecode):
     objectref.__setattr__(field_name, value)
     frame.pc = frame.pc + 2
 
-@register_bytecode(182)
-@register_bytecode(183)
-@register_bytecode(184)
+@register_bytecode(182, use_next=2)
+@register_bytecode(183, use_next=2)
+@register_bytecode(184, use_next=2)
 def invokevirtual_special(vm, klass, method, frame, offset, bytecode):
     method_index = vm.constant_pool_index(bytecode, frame.pc)
     new_klass, method = vm.resolve_field(klass, method_index)
@@ -347,7 +348,7 @@ def invokevirtual_special(vm, klass, method, frame, offset, bytecode):
     vm.run_method(new_klass, method)
     frame.pc = frame.pc + 2
 
-@register_bytecode(187)
+@register_bytecode(187, use_next=2)
 def new(vm, klass, method, frame, offset, bytecode):
     klass_index = vm.constant_pool_index(bytecode, frame.pc)
     klass_name = klass.constant_pool.get_class(klass_index)
@@ -356,7 +357,7 @@ def new(vm, klass, method, frame, offset, bytecode):
     frame.push(instance)
     frame.pc = frame.pc  + 2
 
-@register_bytecode(188)
+@register_bytecode(188, use_next=1)
 def newarray(vm, klass, method, frame, offset, bytecode):
     atype = bytecode[frame.pc+1]
     #types = {4: 'str', 5: 'str', 6: 'float', 7: 'int', 8:
@@ -367,7 +368,7 @@ def newarray(vm, klass, method, frame, offset, bytecode):
     frame.push([0]*size)
     frame.pc = frame.pc + 1
 
-@register_bytecode(189)
+@register_bytecode(189, use_next=2)
 def anewarray(vm, klass, method, frame, offset, bytecode):
     klass_name = klass.constant_pool.get_class(vm.constant_pool_index(bytecode, frame.pc))
     klass = vm.load_class(klass_name)
@@ -392,7 +393,7 @@ def arraylength(vm, klass, method, frame, offset, bytecode):
 def athrow(vm, klass, method, frame, offset, bytecode):
     frame.raised_exception = frame.pop()
 
-@register_bytecode(193)
+@register_bytecode(193, use_next=2)
 def instanceof(vm, klass, method, frame, offset, bytecode):
     objectref = frame.pop()
     if objectref is null:
@@ -408,7 +409,7 @@ def instanceof(vm, klass, method, frame, offset, bytecode):
 def ifnull(vm, klass, method, frame, offset, bytecode):
     frame.pc = decode_signed_offset(bytecode, frame.pc) if frame.pop() is null else frame.pc+2
 
-@register_bytecode(199)
+@register_bytecode(199, use_next=2)
 def ifnonnull(vm, klass, method, frame, offset, bytecode):
     frame.pc = decode_signed_offset(bytecode, frame.pc) if frame.pop() is not null else frame.pc+2
 

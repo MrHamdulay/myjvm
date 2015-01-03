@@ -6,7 +6,7 @@ from klass import NoSuchMethodException, ClassInstance, Class
 from classconstants import *
 from descriptor import parse_descriptor
 from klasses import primitive_classes
-from utils import get_attribute
+from utils import get_attribute, NoSuchAttributeError
 
 from bytecode import bytecodes
 
@@ -91,8 +91,11 @@ class VM:
             print 'exception', raised_exception
             print 'current frame', frame
             print 'current frame method', frame.method
-            exceptions = get_attribute(frame.method, 'CodeAttribute').exceptions
-            print 'exceptions', exceptions
+            print self.frame_stack
+            try:
+                exceptions = get_attribute(frame.method, 'CodeAttribute').exceptions
+            except NoSuchAttributeError:
+                exceptions = []
             for start_pc, end_pc, jump_pc, thrown_class in exceptions:
                 if start_pc <= frame.pc < end_pc:
                     print 'thrown class', thrown_class
@@ -102,7 +105,6 @@ class VM:
                     else:
                         klass_name = frame.klass.constant_pool.get_class(thrown_class)
                         resolved_thrown_class = self.load_class(klass_name)
-                        print resolved_thrown_class
                         caught = resolved_thrown_class.is_subclass(raised_exception)
 
                     if caught:
@@ -114,19 +116,19 @@ class VM:
                         break
             if found:
                 break
-            logging.debug('exception not handled at %s.%s, popping frame' % (frame.klass.name, frame.method.name))
             logging.debug('with exception table of %s' % exceptions)
             self.frame_stack.pop()
         if not found:
-            raise Exception('unable to handle exception')
+            print 'Unable to handle exception %s' % raised_exception
+            print raised_exception.stacktrace
+            sys.exit(1)
 
 
     def run_bytecode(self, min_level=1):
         while len(self.frame_stack) > min_level:
             frame = self.frame_stack[-1]
             print self.frame_stack
-            print frame.code.code, frame.pc
-            print frame.stack, self.frame_stack[-2].stack
+            print frame.pretty_code()
             if frame.method and frame.method.access_flags & ACC_NATIVE:
                 return_value = frame.native_method(frame.klass, self, frame.method, frame)
                 print 'running native method', frame.native_method
@@ -159,10 +161,7 @@ class VM:
                     frame.pc += 1
 
                 if frame.return_value is not None:
-                    print self.frame_stack
                     self.frame_stack.pop()
-                    print 'returning', frame.klass.name, frame.method.name
-                    print self.frame_stack
                     if frame.method.return_type != 'V':
                         self.frame_stack[-1].push(frame.return_value)
             else:

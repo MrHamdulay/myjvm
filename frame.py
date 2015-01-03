@@ -16,8 +16,8 @@ class Frame:
         self.return_value = None
         self.pc = 0
 
-        self.max_stack=max_stack
-        self.max_locals=max_locals
+        self.max_stack = max_stack
+        self.max_locals = max_locals
 
         self.klass = klass
         self.method = method
@@ -36,7 +36,8 @@ class Frame:
         assert value is not None
         self.stack.append(value)
         if len(self.stack) > self.max_stack:
-            raise StackOverflowException('%s > %d (%s)' % (len(self.stack), self.max_stack, self.stack))
+            raise StackOverflowException('%s > %d (%s)' %
+                    (len(self.stack), self.max_stack, self.stack))
 
     def pop(self):
         return self.stack.pop()
@@ -48,4 +49,26 @@ class Frame:
         return self.local_variables[index]
 
     def __repr__(self):
-        return '<Frame %s.%s stack:%d vars:%d%s>' % (self.klass.name if self.klass else '', self.method.name if self.method else '', len(self.stack), len(self.local_variables), ' native' if self.native_method else '')
+        return '<Frame %s.%s pc:%d%s>' % (
+                self.klass.name if self.klass else '',
+                self.method.name if self.method else '',
+                self.pc,
+                ' native' if self.native_method else '')
+
+    def pretty_code(self):
+        output = '%s.%s\n' % (
+            self.klass.name if self.klass else '',
+            self.method.name if self.method else '')
+
+        skip = 0
+        for i, code in enumerate(self.code.code):
+            if skip:
+                output += '- data\n'
+                skip -= 1
+            if code in bytecodes:
+                skip = bytecodes[code][2]
+                output += '%d: %s %s\n' % (i, bytecodes[code][1].func_name,
+                        '***' if self.pc == i else '')
+        return output
+
+from bytecode import bytecodes
