@@ -159,8 +159,8 @@ class VM:
                 # /logging
 
                 previous_pc = frame.pc
-                bytecode_function(self, frame.klass,
-                        frame.method,
+                bytecode_function(
+                        self,
                         frame, bc - start,
                         frame.code.code)
                 if frame.raised_exception:
