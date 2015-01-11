@@ -30,7 +30,18 @@ class Class(object):
         built_method_name = Class.method_name(method_name, type_signature)
         if built_method_name in self.methods:
             return self.methods[built_method_name]
-        raise NoSuchMethodException('No such method %s (%s)' % (method_name, type_signature) )
+
+        # lookup in super class
+        if self.super_class:
+            try:
+                return self.super_class.get_method(
+                        method_name, type_signature)
+            except NoSuchMethodException:
+                pass
+
+        # TODO: implement lookup for default methods in interfaces
+        raise NoSuchMethodException('No such method %s.%s (%s)' % (
+            self.name, method_name, type_signature) )
 
     def is_subclass(self, instance):
         klass = instance._klass
@@ -46,7 +57,10 @@ class Class(object):
         assert method.access_flags & ACC_NATIVE
         assert not hasattr(method, 'code')
         try:
-            native_method = getattr(classes_with_natives[class_name], method.name)
+            if method.name == 'registerNatives':
+                native_method = lambda *args: void
+            else:
+                native_method = getattr(classes_with_natives[class_name], method.name)
         except (KeyError, AttributeError):
             raise Exception('Missing method %s on class %s' % (method.name, class_name))
         method.attributes.append(CodeAttribute(100, 100, [], [], []))

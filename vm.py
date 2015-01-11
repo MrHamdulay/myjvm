@@ -128,33 +128,41 @@ class VM:
         while len(self.frame_stack) > min_level:
             frame = self.frame_stack[-1]
             print self.frame_stack
-            print frame.pretty_code()
+            print frame.pretty_code(self)
             if frame.method and frame.method.access_flags & ACC_NATIVE:
                 return_value = frame.native_method(frame.klass, self, frame.method, frame)
-                print 'running native method', frame.native_method
                 self.frame_stack.pop()
                 print frame.native_method, frame.method.return_type
                 if frame.method.return_type != 'V':
                     self.frame_stack[-1].push(return_value)
                 else:
                     assert return_value is void
-                print 'returning to method %s.%s pc:%d' % (self.frame_stack[-1].klass.name, self.frame_stack[-1].method.name, self.frame_stack[-1].pc)
+                print 'returning to method %s.%s pc:%d' % (
+                        self.frame_stack[-1].klass.name,
+                        self.frame_stack[-1].method.name,
+                        self.frame_stack[-1].pc)
                 continue
 
             bc = frame.code.code[frame.pc]
             frame.klass = frame.klass
             if bc in bytecodes:
-                start, bytecode_function, has_constant_pool_index = bytecodes[bc]
+                start, bytecode_function, _, _ = bytecodes[bc]
 
                 # logging
                 logging.debug('pc: %d (%s.%s (%s)) calling bytecode %d:%s' %
-                        (frame.pc, frame.klass.name, frame.method.name, frame.method.descriptor, bc,  bytecode_function.__name__))
-                if has_constant_pool_index:
-                    logging.debug('with constant pool argument %s' %
-                            (frame.klass.constant_pool.get_object(0, self.constant_pool_index(frame.code.code, frame.pc)), ))
+                        (frame.pc,
+                         frame.klass.name,
+                         frame.method.name,
+                         frame.method.descriptor,
+                         bc,
+                         bytecode_function.__name__))
                 # /logging
 
-                bytecode_function(self, frame.klass, frame.method, frame, bc - start, frame.code.code)
+                previous_pc = frame.pc
+                bytecode_function(self, frame.klass,
+                        frame.method,
+                        frame, bc - start,
+                        frame.code.code)
                 if frame.raised_exception:
                     self.handle_exception()
                 else:
@@ -165,5 +173,9 @@ class VM:
                     if frame.method.return_type != 'V':
                         self.frame_stack[-1].push(frame.return_value)
             else:
-                raise Exception('Unknown bytecode in class %s.%s: %d' % (frame.klass.name, method.name, bytecode[frame.pc]))
+                raise Exception('Unknown bytecode in class %s.%s(%d): %d' % (
+                    frame.klass.name,
+                    frame.method.name,
+                    frame.pc,
+                    frame.code.code[frame.pc]))
 

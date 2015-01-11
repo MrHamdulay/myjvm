@@ -55,8 +55,10 @@ class Frame:
                 self.pc,
                 ' native' if self.native_method else '')
 
-    def pretty_code(self):
-        output = '%s.%s\n' % (
+    def pretty_code(self, vm):
+        if not self.code.code:
+            return ''
+        output = 'Bytecode for method: %s.%s\n' % (
             self.klass.name if self.klass else '',
             self.method.name if self.method else '')
 
@@ -65,10 +67,18 @@ class Frame:
             if skip:
                 output += '- data\n'
                 skip -= 1
+                continue
             if code in bytecodes:
-                skip = bytecodes[code][2]
-                output += '%d: %s %s\n' % (i, bytecodes[code][1].func_name,
-                        '***' if self.pc == i else '')
+                begin, f, skip, repr_f = bytecodes[code]
+                output += '%d: %s %s\n' % (i, f.func_name,
+                        '\t\t***' if self.pc == i else '')
+                if repr_f:
+                    output += 'repr: %s\n' % repr_f(
+                            vm, self, i, code-begin, self.code.code)
+            else:
+                output += '%d: unknown bytecode %d\n' % (i, code)
+                print output
+                raise Exception
         return output
 
 from bytecode import bytecodes

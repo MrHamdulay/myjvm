@@ -6,16 +6,16 @@ bytecodes = {}
 
 from rpython.rlib.rarithmetic import intmask, longlongmask
 
-from classconstants import void, null, ACC_STATIC
+from classconstants import *
 from klass import Class, ClassInstance, ArrayClass
 
-def register_bytecode(start, end=-1, use_next=0):
+def register_bytecode(start, end=-1, use_next=0, bc_repr=None):
     def decorator(f):
         if decorator.end == -1:
             decorator.end = decorator.start
         for i in xrange(decorator.start, decorator.end+1):
             assert i not in bytecodes
-            bytecodes[i] = (decorator.start, f, use_next)
+            bytecodes[i] = (decorator.start, f, use_next, bc_repr)
         return f
     decorator.start = start
     decorator.end = end
@@ -38,6 +38,11 @@ def bipush(vm, klass, method, frame, offset, bytecode):
     frame.push(bytecode[frame.pc+1])
     frame.pc = frame.pc+1
 
+@register_bytecode(17, use_next=2)
+def sipush(vm, klass, method, frame, offset, bytecode):
+    frame.push((bytecode[frame.pc+1]<<8) | bytecode[frame.pc+2])
+    frame.pc = frame.pc+2
+
 @register_bytecode(18, use_next=1)
 def ldc(vm, klass, method, frame, offset, bytecode):
     constant_pool_index = bytecode[frame.pc+1]
@@ -49,6 +54,14 @@ def ldc(vm, klass, method, frame, offset, bytecode):
 def ldc_w(vm, klass, method, frame, offset, bytecode):
     constant_pool_index = (bytecode[frame.pc+1] << 8) +  bytecode[frame.pc+2]
     field = vm.resolve_field(klass, constant_pool_index)
+    frame.push(field)
+    frame.pc = frame.pc+2
+
+@register_bytecode(20, use_next=2)
+def ldc2_w(vm, klass, method, frame, offset, bytecode):
+    index = (bytecode[frame.pc+1] << 8) +  bytecode[frame.pc+2]
+    field = klass.constant_pool.get_object((CONSTANT_Double, CONSTANT_Long), index)[0][0]
+    assert isinstance(field, (float, int, long)), 'incorrect type %s' % str(field)
     frame.push(field)
     frame.pc = frame.pc+2
 
@@ -64,18 +77,28 @@ def iload(vm, klass, method, frame, offset, bytecode):
     frame.push(local)
     frame.pc = frame.pc+1
 
-@register_bytecode(26, 29)
-@register_bytecode(30, 33)
+def iload_n_repr(vm, frame, index, offset, bytecode):
+    return str(offset)
+
+@register_bytecode(26, 29, bc_repr=iload_n_repr)
 def iload_n(vm, klass, method, frame, offset, bytecode):
     local = frame.get_local(offset)
-    assert isinstance(local, int)
-    frame.push(local)
+    frame.push(intmask(local))
+
+@register_bytecode(30, 33, bc_repr=iload_n_repr)
+def lload_n(vm, klass, method, frame, offset, bytecode):
+    local = frame.get_local(offset)
+    frame.push(longlongmask(local))
 
 @register_bytecode(34, 37)
 def fload(vm, klass, method, frame, offset, bytecode):
     local = frame.get_local(offset)
     assert isinstance(local, float)
     frame.push(local)
+
+@register_bytecode(38, 41)
+def dloat_n(vm, klass, method, frame, offset, bytecode):
+    frame.push(float(offset))
 
 @register_bytecode(42, 45)
 def aload_n(vm, klass, method, frame, offset, bytecode):
@@ -108,18 +131,18 @@ def lstore(vm, klass, method, frame, offset, bytecode):
     frame.insert_local(index, local)
     frame.pc = frame.pc + 1
 
+def istore_n_repr(vm, frame, index, offset, bytecode):
+    return str(offset)
 
-@register_bytecode(59, 62)
+@register_bytecode(59, 62, bc_repr=istore_n_repr)
 def istore_n(vm, klass, method, frame, offset, bytecode):
     local = frame.pop()
-    assert isinstance(local, int)
-    frame.insert_local(offset, local)
+    frame.insert_local(offset, intmask(local))
 
-@register_bytecode(63, 66)
+@register_bytecode(63, 66, bc_repr=istore_n_repr)
 def lstore_n(vm, klass, method, frame, offset, bytecode):
     local = frame.pop()
-    assert isinstance(local, int)
-    frame.insert_local(offset, local)
+    frame.insert_local(offset, longlongmask(local))
 
 @register_bytecode(75, 78)
 def astore(vm, klass, method, frame, offset, bytecode):
@@ -176,6 +199,12 @@ def iand(vm, klass, method, frame, offset, bytecode):
     assert isinstance(a, int) and isinstance(b, int)
     frame.push(intmask(a&b))
 
+@register_bytecode(127)
+def land(vm, klass, method, frame, offset, bytecode):
+    a, b = frame.pop(), frame.pop()
+    assert isinstance(a, (long, int)) and isinstance(b, (long, int)), 'Mismatched type "%s", "%s"' % (a, b)
+    frame.push(longlongmask(a&b))
+
 @register_bytecode(132, use_next=2)
 def iinc(vm, klass, method, frame, offset, bytecode):
     index, raw_const = bytecode[frame.pc+1], bytecode[frame.pc+2]
@@ -214,12 +243,12 @@ def integer_comparison(name, operator):
     comparison.__name__ = name
     return comparison
 
-if_cmpeq = register_bytecode(159)(integer_comparison('if_cmpeq', operator.eq))
-if_cmpne = register_bytecode(160)(integer_comparison('if_cmpne', operator.ne))
-if_cmplt = register_bytecode(161)(integer_comparison('if_cmplt', operator.lt))
-if_cmpge = register_bytecode(162)(integer_comparison('if_cmpge', operator.ge))
-if_cmpgt = register_bytecode(163)(integer_comparison('if_cmpgt', operator.gt))
-if_cmple = register_bytecode(164)(integer_comparison('if_cmple', operator.le))
+if_cmpeq = register_bytecode(159, use_next=2)(integer_comparison('if_cmpeq', operator.eq))
+if_cmpne = register_bytecode(160, use_next=2)(integer_comparison('if_cmpne', operator.ne))
+if_cmplt = register_bytecode(161, use_next=2)(integer_comparison('if_cmplt', operator.lt))
+if_cmpge = register_bytecode(162, use_next=2)(integer_comparison('if_cmpge', operator.ge))
+if_cmpgt = register_bytecode(163, use_next=2)(integer_comparison('if_cmpgt', operator.gt))
+if_cmple = register_bytecode(164, use_next=2)(integer_comparison('if_cmple', operator.le))
 
 @register_bytecode(120) #ishl
 def ishl(vm, klass, method, frame, offset, bytecode):
@@ -275,7 +304,14 @@ def i2l(vm, klass, method, frame, offset, bytecode):
 def l2d(vm, klass, method, frame, offset, bytecode):
     frame.push(float(frame.pop()))
 
-@register_bytecode(167)
+@register_bytecode(148)
+def lcmp(vm, klass, method, frame, offset, bytecode):
+    v1, v2 = frame.pop(), frame.pop()
+    assert isinstance(v1, (long, int))
+    assert isinstance(v2, (long, int))
+    frame.push(cmp(v1, v2))
+
+@register_bytecode(167, use_next=2)
 def goto(vm, klass, method, frame, offset, bytecode):
     frame.pc = decode_signed_offset(bytecode, frame.pc)
 
@@ -283,7 +319,13 @@ def goto(vm, klass, method, frame, offset, bytecode):
 def ireturn(vm, klass, method, frame, offset, bytecode):
     return_value = int(frame.pop())
     assert not len(frame.stack)
-    frame.return_value = return_value
+    frame.return_value = intmask(return_value)
+
+@register_bytecode(173)
+def lreturn(vm, klass, method, frame, offset, bytecode):
+    return_value = frame.pop()
+    assert not len(frame.stack)
+    frame.return_value = longlongmask(return_value)
 
 @register_bytecode(176)
 def areturn(vm, klass, method, frame, offset, bytecode):
@@ -297,14 +339,18 @@ def return_(vm, klass, method, frame, offset, bytecode):
     assert not frame.stack
     frame.return_value = void
 
-@register_bytecode(178, use_next=2)
+def getstatic_repr(vm, frame, index, offset, bytecode):
+    ref_index = (bytecode[index+1]<<8) | (bytecode[index+2])
+    return ' '.join(map(str, vm.resolve_field(frame.klass, ref_index)))
+
+@register_bytecode(178, use_next=2, bc_repr=getstatic_repr)
 def getstatic(vm, klass, method, frame, offset, bytecode):
     ref_index = vm.constant_pool_index(bytecode, frame.pc)
     field_klass, field_name, field_descriptor = vm.resolve_field(klass, ref_index)
     frame.push(field_klass.field_values[field_name])
     frame.pc = frame.pc + 2
 
-@register_bytecode(179, use_next=2)
+@register_bytecode(179, use_next=2, bc_repr=getstatic_repr)
 def putstatic(vm, klass, method, frame, offset, bytecode):
     ref_index = vm.constant_pool_index(bytecode, frame.pc)
     field_klass, field_name, field_descriptor = vm.resolve_field(klass, ref_index)
@@ -337,9 +383,14 @@ def putfield(vm, klass, method, frame, offset, bytecode):
     objectref.__setattr__(field_name, value)
     frame.pc = frame.pc + 2
 
-@register_bytecode(182, use_next=2)
-@register_bytecode(183, use_next=2)
-@register_bytecode(184, use_next=2)
+def invokevirtual_repr(vm, frame, index, offset, bytecode):
+    ref_index = (bytecode[index+1]<<8) | (bytecode[index+2])
+    new_klass, method = vm.resolve_field(frame.klass, ref_index)
+    return '%s.%s %s' % (new_klass.name, method.name, method.descriptor)
+
+@register_bytecode(182, use_next=2, bc_repr=invokevirtual_repr)
+@register_bytecode(183, use_next=2, bc_repr=invokevirtual_repr)
+@register_bytecode(184, use_next=2, bc_repr=invokevirtual_repr)
 def invokevirtual_special(vm, klass, method, frame, offset, bytecode):
     method_index = vm.constant_pool_index(bytecode, frame.pc)
     new_klass, method = vm.resolve_field(klass, method_index)
@@ -393,16 +444,29 @@ def arraylength(vm, klass, method, frame, offset, bytecode):
 def athrow(vm, klass, method, frame, offset, bytecode):
     frame.raised_exception = frame.pop()
 
+@register_bytecode(192)
+def checkcast(vm, klass, method, frame, offset, bytecode):
+    reference = frame.pop()
+    frame.pc += 2
+    if reference is null:
+        frame.push(reference)
+        return
+    klass = vm.load_class(klass.constant_pool.get_class(vm.constant_pool_index(bytecode, frame.pc)))
+    if isinstance(reference, ClassInstance):
+        if isisntance(klass, Class):
+            reference._klass.is_subclass(klass)
+    raise NotImplemented()
+
+
 @register_bytecode(193, use_next=2)
 def instanceof(vm, klass, method, frame, offset, bytecode):
     objectref = frame.pop()
+    frame.pc += 2
     if objectref is null:
         frame.push(0)
-        frame.pc = frame.pc+2
         return
     klass = vm.load_class(klass.constant_pool.get_class(vm.constant_pool_index(bytecode, frame.pc)))
     frame.push(1 if klass.is_subclass(objectref) else 0)
-    frame.pc = frame.pc+2
 
 
 @register_bytecode(198)
