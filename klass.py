@@ -32,7 +32,7 @@ class Class(object):
             return self.methods[built_method_name]
 
         # lookup in super class
-        if self.super_class:
+        if '<clinit>' != method_name and self.super_class:
             try:
                 return self.super_class.get_method(
                         method_name, type_signature)

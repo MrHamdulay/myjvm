@@ -225,12 +225,12 @@ def zero_comparison(name, operator):
     comparison.__name__ = name
     return comparison
 
-ifeq = register_bytecode(153)(zero_comparison('ifeq', operator.eq))
-ifne = register_bytecode(154)(zero_comparison('ifne', operator.ne))
-iflt = register_bytecode(155)(zero_comparison('iflt', operator.lt))
-ifge = register_bytecode(156)(zero_comparison('ifge', operator.ge))
-ifgt = register_bytecode(157)(zero_comparison('ifgt', operator.gt))
-ifle = register_bytecode(158)(zero_comparison('ifle', operator.le))
+ifeq = register_bytecode(153, use_next=2)(zero_comparison('ifeq', operator.eq))
+ifne = register_bytecode(154, use_next=2)(zero_comparison('ifne', operator.ne))
+iflt = register_bytecode(155, use_next=2)(zero_comparison('iflt', operator.lt))
+ifge = register_bytecode(156, use_next=2)(zero_comparison('ifge', operator.ge))
+ifgt = register_bytecode(157, use_next=2)(zero_comparison('ifgt', operator.gt))
+ifle = register_bytecode(158, use_next=2)(zero_comparison('ifle', operator.le))
 
 def integer_comparison(name, operator):
     def comparison(vm, klass, method, frame, offset, bytecode):
@@ -469,7 +469,7 @@ def instanceof(vm, klass, method, frame, offset, bytecode):
     frame.push(1 if klass.is_subclass(objectref) else 0)
 
 
-@register_bytecode(198)
+@register_bytecode(198, use_next=2)
 def ifnull(vm, klass, method, frame, offset, bytecode):
     frame.pc = decode_signed_offset(bytecode, frame.pc) if frame.pop() is null else frame.pc+2
 
