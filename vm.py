@@ -65,7 +65,7 @@ class VM:
         klass_descriptor = current_klass.constant_pool.get_class(field[0])
         field_name, field_descriptor = current_klass.constant_pool.get_name_and_type(field[1])
         klass = self.load_class(klass_descriptor)
-        if field_type == 'Methodref':
+        if field_type in ('Methodref', 'InterfaceMethodref'):
             return klass, klass.get_method(field_name, field_descriptor)
         elif field_type == 'Fieldref':
             return klass, field_name, field_descriptor

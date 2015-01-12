@@ -438,9 +438,25 @@ def invokevirtual_special(vm, frame, offset, bytecode):
     vm.run_method(new_klass, method)
     frame.pc = frame.pc + 2
 
-@register_bytecode(185, use_next=4)
+def invokeinterface_repr(vm, frame, index, offset, bytecode):
+    ref_index = (bytecode[index+1]<<8) | (bytecode[index+2])
+    klass, method = vm.resolve_field(frame.klass, ref_index)
+    return '%s.%s' % (klass.name, method.name)
+
+@register_bytecode(185, use_next=4, bc_repr=invokeinterface_repr)
 def invokeinterface(vm, frame, offset, bytecode):
-    raise Exception()
+    print frame.stack
+    method_index = vm.constant_pool_index(bytecode, frame.pc)
+    new_klass, interface_method = vm.resolve_field(frame.klass, method_index)
+    count, zero = bytecode[frame.pc+3], bytecode[frame.pc+4]
+    assert zero == 0
+    objectref = frame.stack[len(frame.stack)-count]
+
+    method = objectref._klass.get_method(
+            interface_method.name,
+            interface_method.descriptor)
+    vm.run_method(objectref._klass, method)
+    frame.pc += 4
 
 @register_bytecode(187, use_next=2)
 def new(vm, frame, offset, bytecode):
