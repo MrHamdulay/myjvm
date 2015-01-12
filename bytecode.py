@@ -1,6 +1,7 @@
 import operator
 import logging
 import struct
+import math
 
 bytecodes = {}
 
