@@ -3,7 +3,7 @@ import logging
 from utils import get_attribute
 from constantpool import ConstantPool
 from classtypes import CodeAttribute, Method
-from classconstants import ACC_STATIC, ACC_NATIVE, ACC_INTERFACE, void
+from classconstants import ACC_STATIC, ACC_NATIVE, ACC_INTERFACE, void, null
 from descriptor import parse_descriptor
 from klasses import classes_with_natives
 
@@ -199,7 +199,7 @@ class ArrayClass(object):
     def __init__(self, klass, size):
         assert isinstance(klass, Class)
         self._klass = klass
-        self.array = [None] * size
+        self.array = [null] * size
 
     @property
     def size(self):

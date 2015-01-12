@@ -14,4 +14,4 @@ classes_with_natives = {
         'java/lang/Double': java_lang_Double,
 }
 
-primitive_classes = ['float', 'double']
+primitive_classes = ['float', 'double', 'int']

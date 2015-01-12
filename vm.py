@@ -90,7 +90,7 @@ class VM:
             print frame.pc
             print 'exception', raised_exception
             print 'current frame', frame
-            print 'current frame method', frame.method
+            print 'current frame method', frame.method.name
             print self.frame_stack
             try:
                 exceptions = get_attribute(frame.method, 'CodeAttribute').exceptions
@@ -127,10 +127,11 @@ class VM:
     def run_bytecode(self, min_level=1):
         while len(self.frame_stack) > min_level:
             frame = self.frame_stack[-1]
-            print self.frame_stack
-            print frame.pretty_code(self)
+            #print self.frame_stack
+            #print frame.pretty_code(self)
             if frame.method and frame.method.access_flags & ACC_NATIVE:
-                return_value = frame.native_method(frame.klass, self, frame.method, frame)
+                return_value = frame.native_method(
+                        frame.klass, self, frame.method, frame)
                 self.frame_stack.pop()
                 print frame.native_method, frame.method.return_type
                 if frame.method.return_type != 'V':
@@ -164,6 +165,7 @@ class VM:
                         frame, bc - start,
                         frame.code.code)
                 if frame.raised_exception:
+                    print frame.pretty_code(self)
                     self.handle_exception()
                 else:
                     frame.pc += 1

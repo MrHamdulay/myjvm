@@ -58,9 +58,10 @@ class Frame:
     def pretty_code(self, vm):
         if not self.code.code:
             return ''
-        output = 'Bytecode for method: %s.%s\n' % (
+        output = 'Bytecode for method: %s.%s %s\n' % (
             self.klass.name if self.klass else '',
-            self.method.name if self.method else '')
+            self.method.name if self.method else '',
+            self.method.descriptor if self.method else '')
 
         skip = 0
         for i, code in enumerate(self.code.code):
@@ -73,8 +74,11 @@ class Frame:
                 output += '%d: %s %s\n' % (i, f.func_name,
                         '\t\t***' if self.pc == i else '')
                 if repr_f:
-                    output += 'repr: %s\n' % repr_f(
-                            vm, self, i, code-begin, self.code.code)
+                    try:
+                        output += 'repr: %s\n' % repr_f(
+                                vm, self, i, code-begin, self.code.code)
+                    except Exception as e:
+                        output += 'repr: Exception :( '+str(e)
             else:
                 output += '%d: unknown bytecode %d\n' % (i, code)
                 print output

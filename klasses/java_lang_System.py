@@ -1,10 +1,11 @@
+import time
 from classconstants import void, null
 
 def registerNatives(klass, vm, method, frame):
     return void
 
 def nanoTime(klass, vm, method, frame):
-    return 0
+    return int(time.time()*1e9)
 
 def currentTimeMillis(klass, vm, method, frame):
     return 0

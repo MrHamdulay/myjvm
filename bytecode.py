@@ -10,6 +10,7 @@ from rpython.rlib.rarithmetic import intmask, longlongmask
 from classconstants import *
 from klass import Class, ClassInstance, ArrayClass
 from descriptor import parse_descriptor, descriptor_is_array
+from arithmetic import *
 
 def register_bytecode(start, end=-1, use_next=0, bc_repr=None):
     def decorator(f):
@@ -24,7 +25,7 @@ def register_bytecode(start, end=-1, use_next=0, bc_repr=None):
     return decorator
 
 def decode_signed_offset(bytecode, pc):
-    jump = struct.unpack('>h', chr(bytecode[pc+1])+chr(bytecode[pc+2]))[0]+pc-1
+    jump = struct.unpack('>h', chr(bytecode[pc+1])+chr(bytecode[pc+2]))[0]+pc
     return jump
 
 @register_bytecode(1)
@@ -34,6 +35,10 @@ def aconst_null(vm, frame, offset, bytecode):
 @register_bytecode(2, 8)
 def iconst_n(vm, frame, offset, bytecode):
     frame.push(offset-1)
+
+@register_bytecode(9, 10)
+def lconst_n(vm, frame, offset, bytecode):
+    frame.push(offset)
 
 @register_bytecode(11, 13)
 def fconst_n(vm, frame, offset, bytecode):
@@ -66,7 +71,8 @@ def ldc_w(vm, frame, offset, bytecode):
 @register_bytecode(20, use_next=2)
 def ldc2_w(vm, frame, offset, bytecode):
     index = (bytecode[frame.pc+1] << 8) +  bytecode[frame.pc+2]
-    field = klass.constant_pool.get_object((CONSTANT_Double, CONSTANT_Long), index)[0][0]
+    field = frame.klass.constant_pool.get_object(
+            (CONSTANT_Double, CONSTANT_Long), index)[0][0]
     assert isinstance(field, (float, int, long)), 'incorrect type %s' % str(field)
     frame.push(field)
     frame.pc = frame.pc+2
@@ -119,10 +125,21 @@ def iaload(vm, frame, offset, bytecode):
     assert index >= 0
     frame.push(array[index])
 
+@register_bytecode(50)
+def aaload(vm, frame, offset, bytecode):
+    index, array = frame.pop(), frame.pop()
+    frame.push(array.array[index])
+
 @register_bytecode(51)
 def baload(vm, frame, offset, bytecode):
     index, array = frame.pop(), frame.pop()
-    raise Exception()
+    assert 0 <= index < len(array)
+    frame.push(bytemask(array[index]))
+
+@register_bytecode(52)
+def caload(vm, frame, offset, bytecode):
+    index, array = frame.pop(), frame.pop()
+    frame.push(charmask(array[index]))
 
 @register_bytecode(54, use_next=1) #istore
 @register_bytecode(55, use_next=1) #lstore
@@ -167,7 +184,16 @@ def iastore(vm, frame, offset, bytecode):
 @register_bytecode(83)
 def aastore(vm, frame, offset, bytecode):
     value, index, arrayref = frame.pop(), frame.pop(), frame.pop()
-    print arrayref, index, value
+    assert arrayref is not null
+    assert index >= 0 and index < len(arrayref.array)
+    arrayref.array[index] = value
+
+@register_bytecode(85)
+def castore(vm, frame, offset, bytecode):
+    value, index, arrayref = frame.pop(), frame.pop(), frame.pop()
+    assert arrayref is not null
+    assert index >= 0 and index < len(arrayref)
+    arrayref[index] = charmask(value)
 
 @register_bytecode(87)
 def pop(vm, frame, offset, bytecode):
@@ -204,6 +230,19 @@ def lmul(vm, frame, offset, bytecode):
     a, b = frame.pop(), frame.pop()
     assert isinstance(a, (int, long)) and isinstance(b, (int, long))
     frame.push(longlongmask(a*b))
+
+@register_bytecode(106)
+def fmul(vm, frame, offset, bytecode):
+    a, b = frame.pop(), frame.pop()
+    assert isinstance(a, float) and isinstance(b, float)
+    frame.push(a*b)
+
+@register_bytecode(122)
+def ishr(vm, frame, offset, bytecode):
+    a, b = frame.pop(), frame.pop()
+    s = b & 0x1f
+    assert isinstance(a, int) and isinstance(b, int)
+    frame.push(intmask(a>>s))
 
 @register_bytecode(126)
 def iand(vm, frame, offset, bytecode):
@@ -318,9 +357,17 @@ def lxor(vm, frame, offset, bytecode):
 def i2l(vm, frame, offset, bytecode):
     return None
 
+@register_bytecode(134)
+def i2f(vm, frame, offset, bytecode):
+    frame.push(float(frame.pop()))
+
 @register_bytecode(138)
 def l2d(vm, frame, offset, bytecode):
-    frame.push(float(frame.pop()))
+    frame.push(frame.pop())
+
+@register_bytecode(139)
+def f2i(vm, frame, offset, bytecode):
+    frame.push(int(frame.pop()))
 
 @register_bytecode(148)
 def lcmp(vm, frame, offset, bytecode):
@@ -349,9 +396,29 @@ def fcmpl(vm, frame, offset, bytecode):
     assert isinstance(v2, float)
     frame.push(cmp(v1, v2))
 
-@register_bytecode(167, use_next=2)
+@register_bytecode(165, use_next=2)
+def if_acmpeq(vm, frame, offset, bytecode):
+    if frame.pop() is frame.pop():
+        frame.pc = decode_signed_offset(bytecode, frame.pc)
+    else:
+        frame.pc += 2
+
+@register_bytecode(166, use_next=2)
+def if_acmpne(vm, frame, offset, bytecode):
+    if frame.pop() is not frame.pop():
+        frame.pc = decode_signed_offset(bytecode, frame.pc)
+    else:
+        frame.pc += 2
+
+def goto_repr(vm, frame, index, offset, bytecode):
+    return str(decode_signed_offset(bytecode, index))
+
+@register_bytecode(167, use_next=2, bc_repr=goto_repr)
 def goto(vm, frame, offset, bytecode):
+    print frame.pretty_code(vm)
     frame.pc = decode_signed_offset(bytecode, frame.pc)
+    assert frame.pc >= 0 and frame.pc < len(bytecode)
+    print frame.pc
 
 @register_bytecode(172)
 def ireturn(vm, frame, offset, bytecode):
@@ -567,7 +634,9 @@ def instanceof(vm, frame, offset, bytecode):
     if objectref is null:
         frame.push(0)
         return
-    klass = vm.load_class(klass.constant_pool.get_class(vm.constant_pool_index(bytecode, frame.pc)))
+    klass = vm.load_class(frame.klass.constant_pool.get_class(
+        vm.constant_pool_index(bytecode, frame.pc-2)))
+    print klass, objectref
     frame.push(1 if klass.is_subclass(objectref) else 0)
 
 
