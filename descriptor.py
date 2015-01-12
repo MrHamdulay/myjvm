@@ -33,9 +33,13 @@ def _parse_descriptor(string, mode=NORMAL):
 
     return result, index
 
-def parse_descriptor(string):
-    return _parse_descriptor(string)[0]
+def parse_descriptor(string, mode=NORMAL):
+    return _parse_descriptor(string, mode)[0]
+
+def descriptor_is_array(descriptor):
+    return descriptor[0] == '['
 
 if __name__ == '__main__':
     #print parse_descriptor('(I[D[[[BLjava/lang/Thread;)Ljava/lang/Object;')
     print parse_descriptor('(Ljava/lang/String$1;)V')
+    print parse_descriptor('[Ljava/lang/String;')[0]

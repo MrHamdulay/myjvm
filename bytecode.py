@@ -8,6 +8,7 @@ from rpython.rlib.rarithmetic import intmask, longlongmask
 
 from classconstants import *
 from klass import Class, ClassInstance, ArrayClass
+from descriptor import parse_descriptor, descriptor_is_array
 
 def register_bytecode(start, end=-1, use_next=0, bc_repr=None):
     def decorator(f):
@@ -32,6 +33,10 @@ def aconst_null(vm, frame, offset, bytecode):
 @register_bytecode(2, 8)
 def iconst_n(vm, frame, offset, bytecode):
     frame.push(offset-1)
+
+@register_bytecode(11, 13)
+def fconst_n(vm, frame, offset, bytecode):
+    frame.push(float(offset))
 
 @register_bytecode(16, use_next=1)
 def bipush(vm, frame, offset, bytecode):
@@ -103,7 +108,7 @@ def dloat_n(vm, frame, offset, bytecode):
 @register_bytecode(42, 45)
 def aload_n(vm, frame, offset, bytecode):
     val = frame.local_variables[offset]
-    assert isinstance(val, (Class, ClassInstance)) or val is null
+    assert isinstance(val, (Class, ClassInstance, ArrayClass)) or val is null
     frame.push(val)
 
 @register_bytecode(46) #iaload
@@ -147,7 +152,8 @@ def lstore_n(vm, frame, offset, bytecode):
 @register_bytecode(75, 78)
 def astore(vm, frame, offset, bytecode):
     reference = frame.pop()
-    assert isinstance(reference, ClassInstance) or reference is null
+    print reference
+    assert isinstance(reference, (ArrayClass, ClassInstance)) or reference is null
     frame.insert_local(offset, reference)
 
 @register_bytecode(79)
@@ -159,7 +165,8 @@ def iastore(vm, frame, offset, bytecode):
 
 @register_bytecode(83)
 def aastore(vm, frame, offset, bytecode):
-    raise Exception()
+    value, index, arrayref = frame.pop(), frame.pop(), frame.pop()
+    print arrayref, index, value
 
 @register_bytecode(87)
 def pop(vm, frame, offset, bytecode):
@@ -247,12 +254,18 @@ def integer_comparison(name, operator):
     comparison.__name__ = name
     return comparison
 
-if_cmpeq = register_bytecode(159, use_next=2)(integer_comparison('if_cmpeq', operator.eq))
-if_cmpne = register_bytecode(160, use_next=2)(integer_comparison('if_cmpne', operator.ne))
-if_cmplt = register_bytecode(161, use_next=2)(integer_comparison('if_cmplt', operator.lt))
-if_cmpge = register_bytecode(162, use_next=2)(integer_comparison('if_cmpge', operator.ge))
-if_cmpgt = register_bytecode(163, use_next=2)(integer_comparison('if_cmpgt', operator.gt))
-if_cmple = register_bytecode(164, use_next=2)(integer_comparison('if_cmple', operator.le))
+if_cmpeq = register_bytecode(159, use_next=2)(
+        integer_comparison('if_cmpeq', operator.eq))
+if_cmpne = register_bytecode(160, use_next=2)(
+        integer_comparison('if_cmpne', operator.ne))
+if_cmplt = register_bytecode(161, use_next=2)(
+        integer_comparison('if_cmplt', operator.lt))
+if_cmpge = register_bytecode(162, use_next=2)(
+        integer_comparison('if_cmpge', operator.ge))
+if_cmpgt = register_bytecode(163, use_next=2)(
+        integer_comparison('if_cmpgt', operator.gt))
+if_cmple = register_bytecode(164, use_next=2)(
+        integer_comparison('if_cmple', operator.le))
 
 @register_bytecode(120) #ishl
 def ishl(vm, frame, offset, bytecode):
@@ -313,6 +326,26 @@ def lcmp(vm, frame, offset, bytecode):
     v1, v2 = frame.pop(), frame.pop()
     assert isinstance(v1, (long, int))
     assert isinstance(v2, (long, int))
+    frame.push(cmp(v1, v2))
+
+@register_bytecode(149)
+def fcmpl(vm, frame, offset, bytecode):
+    v2, v1 = frame.pop(), frame.pop()
+    if math.isnan(v2) or math.isnan(v1):
+        frame.push(-1)
+        return
+    assert isinstance(v1, float)
+    assert isinstance(v2, float)
+    frame.push(cmp(v1, v2))
+
+@register_bytecode(150)
+def fcmpl(vm, frame, offset, bytecode):
+    v2, v1 = frame.pop(), frame.pop()
+    if math.isnan(v2) or math.isnan(v1):
+        frame.push(1)
+        return
+    assert isinstance(v1, float)
+    assert isinstance(v2, float)
     frame.push(cmp(v1, v2))
 
 @register_bytecode(167, use_next=2)
@@ -404,6 +437,10 @@ def invokevirtual_special(vm, frame, offset, bytecode):
     vm.run_method(new_klass, method)
     frame.pc = frame.pc + 2
 
+@register_bytecode(185, use_next=4)
+def invokeinterface(vm, frame, offset, bytecode):
+    raise Exception()
+
 @register_bytecode(187, use_next=2)
 def new(vm, frame, offset, bytecode):
     klass_index = vm.constant_pool_index(bytecode, frame.pc)
@@ -450,18 +487,60 @@ def arraylength(vm, frame, offset, bytecode):
 def athrow(vm, frame, offset, bytecode):
     frame.raised_exception = frame.pop()
 
-@register_bytecode(192)
+def _checkcast(vm, frame, reference, descriptor):
+    print reference, descriptor
+    if not isinstance(reference, ArrayClass):
+        klass_name = descriptor
+        klass = vm.load_class(klass_name)
+        if klass.is_interface:
+            return reference._klass.implements(klass)
+        if isinstance(reference, ClassInstance):
+            return klass.is_subclass(reference)
+    elif reference._klass.is_interface:
+        klass = vm.load_class(descriptor[1:])
+        if not klass.name == 'java/lang/Object':
+            return False
+        return reference._klass.implements(klass)
+    # this is an array type
+    else:
+        # if not array type must be java/lang/Object
+        if not descriptor_is_array(descriptor):
+            return descriptor == 'java/lang/Object'
+
+        klass = vm.load_class(descriptor[1:])
+        if klass.is_interface:
+            return reference._klass.implements(klass)
+
+        # array types match
+        if reference._klass.name == descriptor[1:]:
+            return True
+
+        # recursively check types
+        return _checkcast(
+                vm,
+                frame,
+                reference._klass.instantiate(),
+                descriptor[1:])
+
+
+@register_bytecode(192, use_next=2)
 def checkcast(vm, frame, offset, bytecode):
-    reference = frame.pop()
+    reference = frame.pop() # S
     frame.pc += 2
     if reference is null:
         frame.push(reference)
         return
-    klass = vm.load_class(klass.constant_pool.get_class(vm.constant_pool_index(bytecode, frame.pc)))
-    if isinstance(reference, ClassInstance):
-        if isisntance(klass, Class):
-            reference._klass.is_subclass(klass)
-    raise NotImplemented()
+    print(reference)
+    descriptor = frame.klass.constant_pool.get_class(
+        vm.constant_pool_index(bytecode, frame.pc-2))
+    print descriptor
+    if descriptor[0] == '[':
+        descriptor = parse_descriptor(descriptor)[0]
+
+    if _checkcast(vm, frame, reference, descriptor):
+        frame.push(reference)
+    else:
+        frame.raised_exception = 'ClassCastException'
 
 
 @register_bytecode(193, use_next=2)

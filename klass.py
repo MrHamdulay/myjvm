@@ -3,7 +3,7 @@ import logging
 from utils import get_attribute
 from constantpool import ConstantPool
 from classtypes import CodeAttribute, Method
-from classconstants import ACC_STATIC, ACC_NATIVE, void
+from classconstants import ACC_STATIC, ACC_NATIVE, ACC_INTERFACE, void
 from descriptor import parse_descriptor
 from klasses import classes_with_natives
 
@@ -43,10 +43,24 @@ class Class(object):
         raise NoSuchMethodException('No such method %s.%s (%s)' % (
             self.name, method_name, type_signature) )
 
+    @property
+    def is_interface(self):
+        return self.access_flags & ACC_INTERFACE
+
+    def implements(self, interface):
+        if self is interface:
+            return True
+        for interf in self.interfaces:
+            if interf.implements(interface):
+                return True
+        return False
+
     def is_subclass(self, instance):
         klass = instance._klass
+        print 'checking subclass'
         while klass != self and klass != klass.super_class:
             klass = klass.super_class
+        print klass, self, klass is self
         return klass == self
 
     def instantiate(self):
@@ -60,9 +74,11 @@ class Class(object):
             if method.name == 'registerNatives':
                 native_method = lambda *args: void
             else:
-                native_method = getattr(classes_with_natives[class_name], method.name)
+                native_method = getattr(classes_with_natives[class_name],
+                        method.name)
         except (KeyError, AttributeError):
-            raise Exception('Missing method %s on class %s' % (method.name, class_name))
+            raise Exception('Missing method %s on class %s' % (
+                method.name, class_name))
         method.attributes.append(CodeAttribute(100, 100, [], [], []))
         return native_method
 
@@ -172,8 +188,10 @@ class ClassInstance(object):
 
     def __repr__(self):
         if self._klass_name == 'java/lang/String':
-            return '<String "%s">' % (''.join(chr(x) for x in self._values['value']))
-        return '<Instance of "%s" values:%s>' % (self._klass_name, self._values)
+            return '<String "%s">' % (''.join(chr(x)
+                for x in self._values['value']))
+        return '<Instance of "%s" values:%s>' % (
+                self._klass_name, self._values)
 
 class ArrayClass(object):
     _klass = None
