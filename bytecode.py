@@ -5,7 +5,7 @@ import math
 
 bytecodes = {}
 
-from rpython.rlib.rarithmetic import intmask, longlongmask
+from rpython.rlib.rarithmetic import longlongmask
 
 from classconstants import *
 from klass import Class, ClassInstance, ArrayClass
@@ -32,7 +32,10 @@ def decode_signed_offset(bytecode, pc):
 def aconst_null(vm, frame, offset, bytecode):
     frame.push(null)
 
-@register_bytecode(2, 8)
+def iconst_n_repr(vm, frame, index, offset, bytecode):
+    return str(offset-1)
+
+@register_bytecode(2, 8, bc_repr=iconst_n_repr)
 def iconst_n(vm, frame, offset, bytecode):
     frame.push(offset-1)
 
@@ -54,21 +57,35 @@ def sipush(vm, frame, offset, bytecode):
     frame.push((bytecode[frame.pc+1]<<8) | bytecode[frame.pc+2])
     frame.pc = frame.pc+2
 
-@register_bytecode(18, use_next=1)
+def ldc_repr(vm, frame, index, offset, bytecode):
+    constant_pool_index = bytecode[index+1]
+    return str(vm.resolve_field(frame.klass, constant_pool_index))
+
+@register_bytecode(18, use_next=1, bc_repr=ldc_repr)
 def ldc(vm, frame, offset, bytecode):
     constant_pool_index = bytecode[frame.pc+1]
     field = vm.resolve_field(frame.klass, constant_pool_index)
     frame.push(field)
     frame.pc = frame.pc+1
 
-@register_bytecode(19, use_next=2)
+def ldcw_repr(vm, frame, index, offset, bytecode):
+    constant_pool_index = (bytecode[index+1] << 8) +  bytecode[index+2]
+    return str(vm.resolve_field(frame.klass, constant_pool_index))
+
+@register_bytecode(19, use_next=2, bc_repr=ldcw_repr)
 def ldc_w(vm, frame, offset, bytecode):
     constant_pool_index = (bytecode[frame.pc+1] << 8) +  bytecode[frame.pc+2]
     field = vm.resolve_field(frame.klass, constant_pool_index)
     frame.push(field)
     frame.pc = frame.pc+2
 
-@register_bytecode(20, use_next=2)
+def ldc2_repr(vm, frame, index, offset, bytecode):
+    index = (bytecode[index+1] << 8) +  bytecode[index+2]
+    field = frame.klass.constant_pool.get_object(
+            (CONSTANT_Double, CONSTANT_Long), index)[0][0]
+    return str(field)
+
+@register_bytecode(20, use_next=2, bc_repr=ldc2_repr)
 def ldc2_w(vm, frame, offset, bytecode):
     index = (bytecode[frame.pc+1] << 8) +  bytecode[frame.pc+2]
     field = frame.klass.constant_pool.get_object(
@@ -77,15 +94,20 @@ def ldc2_w(vm, frame, offset, bytecode):
     frame.push(field)
     frame.pc = frame.pc+2
 
-@register_bytecode(21, use_next=1) #iload
-@register_bytecode(22, use_next=1) #lload
-@register_bytecode(25, use_next=1) #aload
+def lstore_repr(vm, frame, index, offset, bytecode):
+    return 'local[%d]' % bytecode[index+1]
+
+@register_bytecode(21, use_next=1, bc_repr=lstore_repr) #iload
+@register_bytecode(22, use_next=1, bc_repr=lstore_repr) #lload
+@register_bytecode(25, use_next=1, bc_repr=lstore_repr) #aload
 def iload(vm, frame, offset, bytecode):
     local = frame.get_local(bytecode[frame.pc+1])
     if bytecode[frame.pc] in (21, 22):
         assert isinstance(local, (long, int))
     elif bytecode[frame.pc] == 25:
         assert isinstance(local, (list, ClassInstance)) or local is null
+    else:
+        raise Exception
     frame.push(local)
     frame.pc = frame.pc+1
 
@@ -122,7 +144,7 @@ def aload_n(vm, frame, offset, bytecode):
 @register_bytecode(47) #laload
 def iaload(vm, frame, offset, bytecode):
     index, array = frame.pop(), frame.pop()
-    assert index >= 0
+    assert index >= 0 and index < len(array), '%d %s' % (index, array)
     frame.push(array[index])
 
 @register_bytecode(50)
@@ -141,9 +163,9 @@ def caload(vm, frame, offset, bytecode):
     index, array = frame.pop(), frame.pop()
     frame.push(charmask(array[index]))
 
-@register_bytecode(54, use_next=1) #istore
-@register_bytecode(55, use_next=1) #lstore
-@register_bytecode(58, use_next=1) #astore
+@register_bytecode(54, use_next=1, bc_repr=lstore_repr) #istore
+@register_bytecode(55, use_next=1, bc_repr=lstore_repr) #lstore
+@register_bytecode(58, use_next=1, bc_repr=lstore_repr) #astore
 def lstore(vm, frame, offset, bytecode):
     index = bytecode[frame.pc+1]
     local = frame.pop()
@@ -211,7 +233,7 @@ def dup(vm, frame, offset, bytecode):
 
 @register_bytecode(96)
 def iadd(vm, frame, offset, bytecode):
-    frame.push(intmask(frame.pop()+frame.pop()))
+    frame.push(intmask(intmask(frame.pop())+intmask(frame.pop())))
 
 @register_bytecode(100)
 def isub(vm, frame, offset, bytecode):
@@ -236,6 +258,11 @@ def fmul(vm, frame, offset, bytecode):
     a, b = frame.pop(), frame.pop()
     assert isinstance(a, float) and isinstance(b, float)
     frame.push(a*b)
+
+@register_bytecode(108)
+def idiv(vm, frame, offset, bytecode):
+    b, a = frame.pop(), frame.pop()
+    frame.push(intmask(a)/intmask(b))
 
 @register_bytecode(122)
 def ishr(vm, frame, offset, bytecode):
@@ -270,7 +297,7 @@ def zero_comparison(name, operator):
         a=frame.pop()
         assert isinstance(a, int)
         if operator(a, 0):
-            frame.pc = decode_signed_offset(bytecode, frame.pc)
+            frame.pc = decode_signed_offset(bytecode, frame.pc)-1
             return
         frame.pc = frame.pc+2
     comparison.__name__ = name
@@ -287,24 +314,28 @@ def integer_comparison(name, operator):
     def comparison(vm, frame, offset, bytecode):
         b, a = frame.pop(), frame.pop()
         assert isinstance(a, int) and isinstance(b, int)
+        print operator, a, b
         if operator(a, b):
-            frame.pc = decode_signed_offset(bytecode, frame.pc)
+            frame.pc = decode_signed_offset(bytecode, frame.pc)-1
             return
         frame.pc = frame.pc+2
     comparison.__name__ = name
     return comparison
 
-if_cmpeq = register_bytecode(159, use_next=2)(
+def cmp_repr(vm, frame, index, offset, bytecode):
+    return str(decode_signed_offset(bytecode, index)-1)
+
+if_cmpeq = register_bytecode(159, use_next=2, bc_repr=cmp_repr)(
         integer_comparison('if_cmpeq', operator.eq))
-if_cmpne = register_bytecode(160, use_next=2)(
+if_cmpne = register_bytecode(160, use_next=2, bc_repr=cmp_repr)(
         integer_comparison('if_cmpne', operator.ne))
-if_cmplt = register_bytecode(161, use_next=2)(
+if_cmplt = register_bytecode(161, use_next=2, bc_repr=cmp_repr)(
         integer_comparison('if_cmplt', operator.lt))
-if_cmpge = register_bytecode(162, use_next=2)(
+if_cmpge = register_bytecode(162, use_next=2, bc_repr=cmp_repr)(
         integer_comparison('if_cmpge', operator.ge))
-if_cmpgt = register_bytecode(163, use_next=2)(
+if_cmpgt = register_bytecode(163, use_next=2, bc_repr=cmp_repr)(
         integer_comparison('if_cmpgt', operator.gt))
-if_cmple = register_bytecode(164, use_next=2)(
+if_cmple = register_bytecode(164, use_next=2, bc_repr=cmp_repr)(
         integer_comparison('if_cmple', operator.le))
 
 @register_bytecode(120) #ishl
@@ -322,9 +353,13 @@ def lshl(vm, frame, offset, bytecode):
 @register_bytecode(124) #iushr
 def iushr(vm, frame, offset, bytecode):
     shift, value = frame.pop(), frame.pop()
+    shift &= 0x1f
+    print(shift)
     assert 0 <= shift <= 31
     assert isinstance(value, int)
-    frame.push(intmask(value >> shift))
+    unsigned = struct.unpack('>I', struct.pack('>i', value))[0]
+    unsigned >>= shift
+    frame.push(struct.unpack('>i', struct.pack('>I', unsigned))[0])
 
 @register_bytecode(125) #lushr
 def lushr(vm, frame, offset, bytecode):
@@ -399,14 +434,14 @@ def fcmpl(vm, frame, offset, bytecode):
 @register_bytecode(165, use_next=2)
 def if_acmpeq(vm, frame, offset, bytecode):
     if frame.pop() is frame.pop():
-        frame.pc = decode_signed_offset(bytecode, frame.pc)
+        frame.pc = decode_signed_offset(bytecode, frame.pc)-1
     else:
         frame.pc += 2
 
 @register_bytecode(166, use_next=2)
 def if_acmpne(vm, frame, offset, bytecode):
     if frame.pop() is not frame.pop():
-        frame.pc = decode_signed_offset(bytecode, frame.pc)
+        frame.pc = decode_signed_offset(bytecode, frame.pc)-1
     else:
         frame.pc += 2
 
@@ -415,10 +450,8 @@ def goto_repr(vm, frame, index, offset, bytecode):
 
 @register_bytecode(167, use_next=2, bc_repr=goto_repr)
 def goto(vm, frame, offset, bytecode):
-    print frame.pretty_code(vm)
-    frame.pc = decode_signed_offset(bytecode, frame.pc)
+    frame.pc = decode_signed_offset(bytecode, frame.pc)-1
     assert frame.pc >= 0 and frame.pc < len(bytecode)
-    print frame.pc
 
 @register_bytecode(172)
 def ireturn(vm, frame, offset, bytecode):
@@ -642,11 +675,11 @@ def instanceof(vm, frame, offset, bytecode):
 
 @register_bytecode(198, use_next=2)
 def ifnull(vm, frame, offset, bytecode):
-    frame.pc = decode_signed_offset(bytecode, frame.pc) if frame.pop() is null else frame.pc+2
+    frame.pc = decode_signed_offset(bytecode, frame.pc)-1 if frame.pop() is null else frame.pc+2
 
 @register_bytecode(199, use_next=2)
 def ifnonnull(vm, frame, offset, bytecode):
-    frame.pc = decode_signed_offset(bytecode, frame.pc) if frame.pop() is not null else frame.pc+2
+    frame.pc = decode_signed_offset(bytecode, frame.pc)-1 if frame.pop() is not null else frame.pc+2
 
 @register_bytecode(194)
 def monitorenter(vm, frame, offset, bytecode):

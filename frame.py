@@ -64,6 +64,8 @@ class Frame:
             self.method.descriptor if self.method else '')
 
         skip = 0
+        start = max(0, self.pc-10)
+        end = min(len(self.code.code), self.pc+10)
         for i, code in enumerate(self.code.code):
             if skip:
                 output += '- data\n'

@@ -1,7 +1,13 @@
 import time
 from classconstants import void, null
 
+class OutPrintStream(NativeClassInstance):
+    pass
+
 def registerNatives(klass, vm, method, frame):
+    PrintStream = vm.load_class('java/io/PrintStream')
+    #out.natives[Class.method_name(
+
     return void
 
 def nanoTime(klass, vm, method, frame):

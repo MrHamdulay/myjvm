@@ -57,10 +57,8 @@ class Class(object):
 
     def is_subclass(self, instance):
         klass = instance._klass
-        print 'checking subclass'
         while klass != self and klass != klass.super_class:
             klass = klass.super_class
-        print klass, self, klass is self
         return klass == self
 
     def instantiate(self):
@@ -71,11 +69,12 @@ class Class(object):
         assert method.access_flags & ACC_NATIVE
         assert not hasattr(method, 'code')
         try:
-            if method.name == 'registerNatives':
-                native_method = lambda *args: void
+            module = classes_with_natives[class_name]
+            if method.name == 'registerNatives' and \
+                    not 'registerNatives' in module.__dict__:
+                native_method = (lambda *args: void)
             else:
-                native_method = getattr(classes_with_natives[class_name],
-                        method.name)
+                native_method = getattr(module, method.name)
         except (KeyError, AttributeError):
             raise Exception('Missing method %s on class %s' % (
                 method.name, class_name))
@@ -91,8 +90,16 @@ class Class(object):
         code = get_attribute(method, 'Code')
 
         # may contain an instance argument (not STATIC
-        num_args = len(method.parameters) + (1 if (method.access_flags & ACC_STATIC == 0) else 0)
+        is_static = method.access_flags & ACC_STATIC != 0
+        num_args = len(method.parameters) + (0 if is_static else 1)
         arguments = [vm.frame_stack[-1].pop() for i in xrange(num_args)][::-1]
+        if not is_static:
+            #print arguments
+            assert arguments[0] is not null, '%s is not null' % str(arguments[0])
+            instance = arguments[0]
+            if isinstance(instance, NativeClassInstance):
+                name = '%s__%s'%(method.name, method.descriptor)
+                native_method = instance.natives[name]
         print 'adding method %s.%s to stack' % (self.name, method.name)
         frame = Frame(
                 parameters=arguments,
@@ -166,6 +173,7 @@ class ClassInstance(object):
         self._values = {}
         self._klass = klass
         self._klass_name = klass_name
+        self.natives = {}
 
     def __getattr__(self, name):
         if name in self.__dict__:
@@ -193,6 +201,13 @@ class ClassInstance(object):
         return '<Instance of "%s" values:%s>' % (
                 self._klass_name, self._values)
 
+class NativeClassInstance(ClassInstance):
+    __getattr__ = object.__getattr__
+    __setattr__ = object.__setattr__
+
+    def __init__(self):
+        self.natives = {}
+
 class ArrayClass(object):
     _klass = None
 
@@ -200,6 +215,9 @@ class ArrayClass(object):
         assert isinstance(klass, Class)
         self._klass = klass
         self.array = [null] * size
+
+    def __repr__(self):
+        return '<Array %s size=%d> ' % (self._klass.name, len(self.array))
 
     @property
     def size(self):

@@ -10,3 +10,12 @@ def bytemask(n):
     if n > BYTE_TEST:
         n-= BYTE_TEST
     return n
+
+INT_MASK = (2**32)-1
+INT_TEST = 2**31
+
+def intmask(n):
+    n &= INT_MASK
+    if n > INT_TEST:
+        n-= INT_TEST
+    return int(n)

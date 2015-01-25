@@ -90,7 +90,8 @@ class VM:
             print frame.pc
             print 'exception', raised_exception
             print 'current frame', frame
-            print 'current frame method', frame.method.name
+            if frame.method:
+                print 'current frame method', frame.method.name
             print self.frame_stack
             try:
                 exceptions = get_attribute(frame.method, 'CodeAttribute').exceptions
@@ -129,11 +130,10 @@ class VM:
             frame = self.frame_stack[-1]
             #print self.frame_stack
             #print frame.pretty_code(self)
-            if frame.method and frame.method.access_flags & ACC_NATIVE:
+            if frame.method and frame.native_method is not None:
                 return_value = frame.native_method(
                         frame.klass, self, frame.method, frame)
                 self.frame_stack.pop()
-                print frame.native_method, frame.method.return_type
                 if frame.method.return_type != 'V':
                     self.frame_stack[-1].push(return_value)
                 else:
@@ -147,16 +147,21 @@ class VM:
             bc = frame.code.code[frame.pc]
             frame.klass = frame.klass
             if bc in bytecodes:
-                start, bytecode_function, _, _ = bytecodes[bc]
+                start, bytecode_function, _, bc_repr = bytecodes[bc]
 
                 # logging
-                logging.debug('pc: %d (%s.%s (%s)) calling bytecode %d:%s' %
+                r = ''
+                if bc_repr:
+                    r = 'repr: %s'%bc_repr(self, frame, frame.pc,
+                             bc-start, frame.code.code)
+                logging.debug('pc: %d (%s.%s (%s)) calling bytecode %d:%s %s' %
                         (frame.pc,
                          frame.klass.name,
                          frame.method.name,
                          frame.method.descriptor,
                          bc,
-                         bytecode_function.__name__))
+                         bytecode_function.__name__,
+                         r))
                 # /logging
 
                 previous_pc = frame.pc
@@ -164,6 +169,7 @@ class VM:
                         self,
                         frame, bc - start,
                         frame.code.code)
+                logging.debug(str(frame.stack))
                 if frame.raised_exception:
                     print frame.pretty_code(self)
                     self.handle_exception()
