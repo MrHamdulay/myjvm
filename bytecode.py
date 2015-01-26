@@ -486,7 +486,10 @@ def getstatic(vm, frame, offset, bytecode):
     ref_index = vm.constant_pool_index(bytecode, frame.pc)
     field_klass, field_name, field_descriptor = vm.resolve_field(
             frame.klass, ref_index)
-    frame.push(field_klass.field_values[field_name])
+    if field_name in field_klass.field_overrides:
+        frame.push(field_klass.field_overrides[field_name])
+    else:
+        frame.push(field_klass.field_values[field_name])
     frame.pc = frame.pc + 2
 
 @register_bytecode(179, use_next=2, bc_repr=getstatic_repr)

@@ -5,7 +5,6 @@ from constantpool import ConstantPool
 from classtypes import CodeAttribute, Method
 from classconstants import ACC_STATIC, ACC_NATIVE, ACC_INTERFACE, void, null
 from descriptor import parse_descriptor
-from klasses import classes_with_natives
 
 class NoSuchMethodException(Exception):
     pass
@@ -13,16 +12,18 @@ class NoSuchMethodException(Exception):
 EMPTY_METHOD = Method(ACC_STATIC, '', '()V', [CodeAttribute(0, 0, [], [], [])], '', '')
 
 class Class(object):
-    def __init__(self, name=None):
+    def __init__(self,
+            name=None,
+            super_class=None):
         self.name = name if name else self.__class__.__name__
         self.major_version, self.minor_version = -1, -1
         self.constant_pool = ConstantPool(0)
         self.access_flags = 0
-        self.this_class = None
-        self.super_class = None
+        self.super_class = super_class
         self.interfaces = []
         self.fields = {}
         self.field_values = {}
+        self.field_overrides = {}
         self.methods = {}
         self.attributes = []
 
@@ -95,11 +96,8 @@ class Class(object):
         arguments = [vm.frame_stack[-1].pop() for i in xrange(num_args)][::-1]
         if not is_static:
             #print arguments
-            assert arguments[0] is not null, '%s is not null' % str(arguments[0])
+            assert arguments[0] is not null, '%s is null' % str(arguments[0])
             instance = arguments[0]
-            if isinstance(instance, NativeClassInstance):
-                name = '%s__%s'%(method.name, method.descriptor)
-                native_method = instance.natives[name]
         print 'adding method %s.%s to stack' % (self.name, method.name)
         frame = Frame(
                 parameters=arguments,
@@ -130,6 +128,8 @@ class Class(object):
             return '%s__%s' % args
         raise Exception
 
+    def override_native_method(self, f):
+        print self.methods
 
 class NativeClass(Class):
     def get_method(self, method_name, type_signature):
@@ -160,7 +160,6 @@ class NativeClass(Class):
         if method.return_type == 'V':
             return void
         return return_value
-
 
 class ClassInstance(object):
     _klass = None
@@ -201,13 +200,6 @@ class ClassInstance(object):
         return '<Instance of "%s" values:%s>' % (
                 self._klass_name, self._values)
 
-class NativeClassInstance(ClassInstance):
-    __getattr__ = object.__getattr__
-    __setattr__ = object.__setattr__
-
-    def __init__(self):
-        self.natives = {}
-
 class ArrayClass(object):
     _klass = None
 
@@ -224,3 +216,4 @@ class ArrayClass(object):
         return len(self.array)
 
 from frame import Frame
+from klasses import classes_with_natives

@@ -18,6 +18,10 @@ class VM:
         self.frame_stack = [Frame()]
         self.heap = []
 
+    @property
+    def stack(self):
+        return self.frame_stack[-1]
+
     def load_class(self, class_name):
         if class_name in self.class_cache:
             return self.class_cache[class_name]
@@ -37,7 +41,7 @@ class VM:
         try:
             self.run_method(klass, klass.get_method('<clinit>', '()V'))
             # initialise this method before running any other code
-            self.run_bytecode(len(self.frame_stack)-1)
+            self.run_bytecode()
         except NoSuchMethodException:
             pass
 
@@ -125,10 +129,12 @@ class VM:
             sys.exit(1)
 
 
-    def run_bytecode(self, min_level=1):
+    def run_bytecode(self):
+        min_level = len(self.frame_stack)-1
         while len(self.frame_stack) > min_level:
             frame = self.frame_stack[-1]
-            #print self.frame_stack
+            print
+            print self.frame_stack
             #print frame.pretty_code(self)
             if frame.method and frame.native_method is not None:
                 return_value = frame.native_method(
