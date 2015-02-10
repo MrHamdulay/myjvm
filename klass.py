@@ -14,7 +14,9 @@ EMPTY_METHOD = Method(ACC_STATIC, '', '()V', [CodeAttribute(0, 0, [], [], [])], 
 class Class(object):
     def __init__(self,
             name=None,
-            super_class=None):
+            super_class=None,
+            vm=None):
+        self._klass = None
         self.name = name if name else self.__class__.__name__
         self.major_version, self.minor_version = -1, -1
         self.constant_pool = ConstantPool(0)
@@ -44,6 +46,13 @@ class Class(object):
         raise NoSuchMethodException('No such method %s.%s (%s)' % (
             self.name, method_name, type_signature) )
 
+    def get_field(self, field_name):
+        klass = self
+        while field_name not in klass.fields:
+            klass = klass.super_class
+        return klass.fields[field_name]
+
+
     @property
     def is_interface(self):
         return self.access_flags & ACC_INTERFACE
@@ -57,9 +66,14 @@ class Class(object):
         return False
 
     def is_subclass(self, instance):
-        klass = instance._klass
+        if isinstance(instance, Class):
+            return self.name in ('java/lang/Class', 'java/lang/Object')
+        else:
+            klass = instance._klass
         while klass != self and klass != klass.super_class:
+            print klass
             klass = klass.super_class
+        print klass
         return klass == self
 
     def instantiate(self):
@@ -70,12 +84,16 @@ class Class(object):
         assert method.access_flags & ACC_NATIVE
         assert not hasattr(method, 'code')
         try:
-            module = classes_with_natives[class_name]
-            if method.name == 'registerNatives' and \
-                    not 'registerNatives' in module.__dict__:
+            if class_name not in classes_with_natives and \
+                    method.name == 'registerNatives':
                 native_method = (lambda *args: void)
             else:
-                native_method = getattr(module, method.name)
+                module = classes_with_natives[class_name]
+                if method.name == 'registerNatives' and \
+                        not 'registerNatives' in module.__dict__:
+                    native_method = (lambda *args: void)
+                else:
+                    native_method = getattr(module, method.name)
         except (KeyError, AttributeError):
             raise Exception('Missing method %s on class %s' % (
                 method.name, class_name))
@@ -83,6 +101,7 @@ class Class(object):
         return native_method
 
     def run_method(self, vm, method, method_descriptor):
+        print self, method
         native_method = None
         # handle native methods
         if (method.access_flags & ACC_NATIVE) != 0:
@@ -118,7 +137,7 @@ class Class(object):
         print self.attributes
 
     def __repr__(self):
-        return '<Klass %s> ' % self.name
+        return '<Class %s> ' % self.name
 
     @staticmethod
     def method_name(*args):
@@ -174,14 +193,14 @@ class ClassInstance(object):
         self._klass_name = klass_name
         self.natives = {}
 
-    def __getattr__(self, name):
+    '''def __getattr__(self, name):
         if name in self.__dict__:
             return self.__dict__[name]
         if name in  self._values:
             return self._values[name]
         if name in self._klass.methods:
             return self._klass.methods[name]
-        raise Exception()
+        raise Exception('could not access value )'''
 
     def __setattr__(self, name, value):
         if name in self.__dict__ or name[0] == '_':
@@ -198,7 +217,7 @@ class ClassInstance(object):
             return '<String "%s">' % (''.join(chr(x)
                 for x in self._values['value']))
         return '<Instance of "%s" values:%s>' % (
-                self._klass_name, self._values)
+            self._klass_name, self._values)
 
 class ArrayClass(object):
     _klass = None

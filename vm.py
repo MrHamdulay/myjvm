@@ -31,6 +31,7 @@ class VM:
 
         klass = self.class_loader.load(class_name)
         self.class_cache[class_name] = klass
+        klass._klass = self.load_class('java/lang/Class')
 
         # load all supers and interfaces
         if klass.super_class:
@@ -66,6 +67,7 @@ class VM:
             return field[0]
         elif field_type == 'Class':
             return self.load_class(current_klass.constant_pool.get_string(field[0]))
+        print current_klass, ref_index, field_type, field, _
         klass_descriptor = current_klass.constant_pool.get_class(field[0])
         field_name, field_descriptor = current_klass.constant_pool.get_name_and_type(field[1])
         klass = self.load_class(klass_descriptor)
@@ -134,7 +136,8 @@ class VM:
         while len(self.frame_stack) > min_level:
             frame = self.frame_stack[-1]
             print
-            print self.frame_stack
+            print 'frame stack', self.frame_stack
+            print 'stack stack', frame.stack
             #print frame.pretty_code(self)
             if frame.method and frame.native_method is not None:
                 return_value = frame.native_method(
@@ -158,16 +161,18 @@ class VM:
                 # logging
                 r = ''
                 if bc_repr:
-                    r = 'repr: %s'%bc_repr(self, frame, frame.pc,
+                    r = 'repr: %s' % bc_repr(self, frame, frame.pc,
                              bc-start, frame.code.code)
-                logging.debug('pc: %d (%s.%s (%s)) calling bytecode %d:%s %s' %
+
+                logging.debug('pc: %d (%s.%s (%s)) calling bytecode %d:%s' %
                         (frame.pc,
                          frame.klass.name,
                          frame.method.name,
                          frame.method.descriptor,
                          bc,
-                         bytecode_function.__name__,
-                         r))
+                         bytecode_function.__name__
+                         ))
+                logging.debug(r)
                 # /logging
 
                 previous_pc = frame.pc
@@ -177,7 +182,7 @@ class VM:
                         frame.code.code)
                 logging.debug(str(frame.stack))
                 if frame.raised_exception:
-                    print frame.pretty_code(self)
+                    print frame.pretty_code(self, around=20)
                     self.handle_exception()
                 else:
                     frame.pc += 1

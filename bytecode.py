@@ -12,6 +12,11 @@ from klass import Class, ClassInstance, ArrayClass
 from descriptor import parse_descriptor, descriptor_is_array
 from arithmetic import *
 
+def default_value(descriptor):
+    if descriptor[0] in '[L':
+        return null
+    return 0
+
 def register_bytecode(start, end=-1, use_next=0, bc_repr=None):
     def decorator(f):
         if decorator.end == -1:
@@ -192,7 +197,6 @@ def lstore_n(vm, frame, offset, bytecode):
 @register_bytecode(75, 78)
 def astore(vm, frame, offset, bytecode):
     reference = frame.pop()
-    print reference
     assert isinstance(reference, (ArrayClass, ClassInstance)) or reference is null
     frame.insert_local(offset, reference)
 
@@ -314,7 +318,6 @@ def integer_comparison(name, operator):
     def comparison(vm, frame, offset, bytecode):
         b, a = frame.pop(), frame.pop()
         assert isinstance(a, int) and isinstance(b, int)
-        print operator, a, b
         if operator(a, b):
             frame.pc = decode_signed_offset(bytecode, frame.pc)-1
             return
@@ -354,7 +357,6 @@ def lshl(vm, frame, offset, bytecode):
 def iushr(vm, frame, offset, bytecode):
     shift, value = frame.pop(), frame.pop()
     shift &= 0x1f
-    print(shift)
     assert 0 <= shift <= 31
     assert isinstance(value, int)
     unsigned = struct.unpack('>I', struct.pack('>i', value))[0]
@@ -465,6 +467,12 @@ def lreturn(vm, frame, offset, bytecode):
     assert not len(frame.stack)
     frame.return_value = longlongmask(return_value)
 
+@register_bytecode(174)
+def freturn(vm, frame, offset, bytecode):
+    return_value = frame.pop()
+    assert not len(frame.stack)
+    frame.return_value = float(return_value)
+
 @register_bytecode(176)
 def areturn(vm, frame, offset, bytecode):
     return_value = frame.pop()
@@ -501,7 +509,7 @@ def putstatic(vm, frame, offset, bytecode):
     field_klass.field_values[field_name] = value
     frame.pc = frame.pc + 2
 
-@register_bytecode(180, use_next=2)
+@register_bytecode(180, use_next=2, bc_repr=getstatic_repr)
 def getfield(vm, frame, offset, bytecode):
     field_index = vm.constant_pool_index(bytecode, frame.pc)
     field_klass, field_name, field_descriptor = vm.resolve_field(
@@ -511,11 +519,17 @@ def getfield(vm, frame, offset, bytecode):
         vm.throw_exception(frame, 'java/lang/NullPointerException')
     else:
         assert isinstance(objectref, ClassInstance)
-        frame.push( objectref.__getattr__(field_name))
+        if field_name not in objectref._values:
+            print 'class', objectref._klass
+            print 'class fields', objectref._klass.fields
+            value = default_value(objectref._klass.get_field(field_name).descriptor)
+        else:
+            value = objectref._values[field_name]
+        frame.push(value)
     frame.pc = frame.pc + 2
 
 
-@register_bytecode(181, use_next=2)
+@register_bytecode(181, use_next=2, bc_repr=getstatic_repr)
 def putfield(vm, frame, offset, bytecode):
     field_index = vm.constant_pool_index(bytecode, frame.pc)
     field_klass, field_name, field_descriptor = vm.resolve_field(
@@ -526,7 +540,8 @@ def putfield(vm, frame, offset, bytecode):
     frame.pc = frame.pc + 2
 
 def invokevirtual_repr(vm, frame, index, offset, bytecode):
-    ref_index = (bytecode[index+1]<<8) | (bytecode[index+2])
+    return ''
+    ref_index = vm.constant_pool_index(bytecode, index)
     new_klass, method = vm.resolve_field(frame.klass, ref_index)
     return '%s.%s %s' % (new_klass.name, method.name, method.descriptor)
 
@@ -536,9 +551,26 @@ def invokevirtual_repr(vm, frame, index, offset, bytecode):
 def invokevirtual_special(vm, frame, offset, bytecode):
     method_index = vm.constant_pool_index(bytecode, frame.pc)
     new_klass, method = vm.resolve_field(frame.klass, method_index)
+    # fetch the instance and then extract the class from that.
+    # we do this so that in the case of an abstract class we get
+    # the implemented method
+    if bytecode[frame.pc] == 182:
+        instance = frame.stack[-len(method.parameters)-1]
+        assert new_klass.is_subclass(instance), '%s ! < %s' % (str(new_klass), str(instance))
+        new_klass = instance._klass
     if bytecode[frame.pc] == 184:
         assert (method.access_flags & ACC_STATIC) != 0
-    vm.run_method(new_klass, method)
+
+    # find the superclass that contains this method
+    method_name = Class.method_name(method.name, method.descriptor)
+    while method_name not in new_klass.methods:
+        new_klass = new_klass.super_class
+        if new_klass.super_class == new_klass:
+            break
+    assert method_name in new_klass.methods
+
+    new_method = new_klass.methods[method_name]
+    vm.run_method(new_klass, new_method)
     frame.pc = frame.pc + 2
 
 def invokeinterface_repr(vm, frame, index, offset, bytecode):
@@ -645,6 +677,7 @@ def _checkcast(vm, frame, reference, descriptor):
 
 @register_bytecode(192, use_next=2)
 def checkcast(vm, frame, offset, bytecode):
+    print 'frame', frame.stack
     reference = frame.pop() # S
     frame.pc += 2
     if reference is null:
@@ -672,7 +705,6 @@ def instanceof(vm, frame, offset, bytecode):
         return
     klass = vm.load_class(frame.klass.constant_pool.get_class(
         vm.constant_pool_index(bytecode, frame.pc-2)))
-    print klass, objectref
     frame.push(1 if klass.is_subclass(objectref) else 0)
 
 

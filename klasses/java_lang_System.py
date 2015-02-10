@@ -6,7 +6,7 @@ from klass import Class
 def registerNatives(klass, vm, method, frame):
     print '!!! begin'
     OutputStream = vm.load_class('java/io/OutputStream')
-    PrintOutputStream = Class('PrintOutputStream', super_class=OutputStream)
+    PrintOutputStream = Class('java/io/PrintOutputStream', super_class=OutputStream)
     @PrintOutputStream.override_native_method
     def write(*args):
         print 'write', args
@@ -17,11 +17,12 @@ def registerNatives(klass, vm, method, frame):
 
     vm.stack.push(system_out)
     vm.stack.push(system_out_stream)
+    klass.field_overrides['out'] = system_out
+    klass.field_overrides['security'] = null
 
     print PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')
     vm.run_method(PrintStream, PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V'))
     vm.run_bytecode()
-    klass.field_overrides['out'] = system_out
     raise Exception
     return void
 
