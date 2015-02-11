@@ -69,7 +69,7 @@ class VM:
             assert field_type in expected_field_types, '%s is not the expected field type' % field_type
         if field_type == 'String':
             string = ClassInstance('java/lang/String', self.load_class('java/lang/String'))
-            string.value = map(ord, current_klass.constant_pool.get_string(field[0]))
+            string._values['value'] = map(ord, current_klass.constant_pool.get_string(field[0]))
             return string
         elif field_type in ('Float', 'Integer'):
             return field[0]

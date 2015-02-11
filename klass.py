@@ -29,6 +29,11 @@ class Class(object):
         self.methods = {}
         self.attributes = []
 
+    @property
+    def is_array(self):
+        return self.name[0] == '['
+
+
     def get_method(self, method_name, type_signature):
         built_method_name = Class.method_name(method_name, type_signature)
         if built_method_name in self.methods:
@@ -76,7 +81,10 @@ class Class(object):
         print klass
         return klass == self
 
-    def instantiate(self):
+    def instantiate(self, size=None):
+        if self.is_array:
+            assert size is not None
+            return ArrayClass(self, size)
         return ClassInstance(self.name, self)
 
     @staticmethod
@@ -137,7 +145,7 @@ class Class(object):
         print self.attributes
 
     def __repr__(self):
-        return '<Class %s> ' % self.name
+        return '<Class %s%s> ' % (self.name, ' array' if self.is_array else '')
 
     @staticmethod
     def method_name(*args):
@@ -193,25 +201,6 @@ class ClassInstance(object):
         self._klass_name = klass_name
         self.natives = {}
 
-    '''def __getattr__(self, name):
-        if name in self.__dict__:
-            return self.__dict__[name]
-        if name in  self._values:
-            return self._values[name]
-        if name in self._klass.methods:
-            return self._klass.methods[name]
-        raise Exception('could not access value )'''
-
-    def __setattr__(self, name, value):
-        if name in self.__dict__ or name[0] == '_':
-            self.__dict__[name] = value
-            return
-
-        # TODO: check the type in the parent class
-
-        self._values[name] = value
-        pass
-
     def __repr__(self):
         if self._klass_name == 'java/lang/String':
             return '<String "%s">' % (''.join(chr(x)
@@ -221,12 +210,13 @@ class ClassInstance(object):
         return '<Instance of "%s" values:%s>' % (
             self._klass_name, self._values)
 
-class ArrayClass(object):
+class ArrayClass(ClassInstance):
     _klass = None
 
     def __init__(self, klass, size):
         assert isinstance(klass, Class)
         self._klass = klass
+        self._klass_name = klass.name
         self.array = [null] * size
 
     def __repr__(self):

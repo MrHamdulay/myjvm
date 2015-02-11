@@ -552,7 +552,7 @@ def putfield(vm, frame, offset, bytecode):
             frame.klass, field_index, 'Fieldref')
     value, objectref = frame.pop(), frame.pop()
     assert isinstance(objectref, ClassInstance) or objectref is null
-    objectref.__setattr__(field_name, value)
+    objectref._values[field_name] = value
     frame.pc = frame.pc + 2
 
 def invokevirtual_repr(vm, frame, index, offset, bytecode):
