@@ -32,7 +32,7 @@ class Class(object):
     def get_method(self, method_name, type_signature):
         built_method_name = Class.method_name(method_name, type_signature)
         if built_method_name in self.methods:
-            return self.methods[built_method_name]
+            return self, self.methods[built_method_name]
 
         # lookup in super class
         if '<clinit>' != method_name and self.super_class:
@@ -153,9 +153,9 @@ class Class(object):
 class NativeClass(Class):
     def get_method(self, method_name, type_signature):
         if method_name in ('<init>', '<clinit>'):
-            return Method(ACC_STATIC, method_name, type_signature, [], '', '')
+            return self, Method(ACC_STATIC, method_name, type_signature, [], '', '')
         if method_name in self.methods:
-            return self.methods[method_name]
+            return self, self.methods[method_name]
         raise NoSuchMethodException('No such method %s.%s (%s)' % (self, method_name, type_signature) )
 
     def run_method(self, vm, method, method_descriptor):
@@ -216,6 +216,8 @@ class ClassInstance(object):
         if self._klass_name == 'java/lang/String':
             return '<String "%s">' % (''.join(chr(x)
                 for x in self._values['value']))
+        return '<Instance of "%s">' % (
+            self._klass_name)
         return '<Instance of "%s" values:%s>' % (
             self._klass_name, self._values)
 

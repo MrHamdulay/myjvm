@@ -21,7 +21,8 @@ def registerNatives(klass, vm, method, frame):
     klass.field_overrides['security'] = null
 
     print PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')
-    vm.run_method(PrintStream, PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V'))
+    klass, method = PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')
+    vm.run_method(klass, method)
     vm.run_bytecode()
     raise Exception
     return void

@@ -12,6 +12,7 @@ class Interpreter:
 
     def start(self):
         self.vm.class_loader.load_jar('klasses/rt.jar')
+        self.vm.warmup()
         print 's1', self.vm.frame_stack
         # initialise klass
         klass = self.vm.load_class(self.initial_class_name)

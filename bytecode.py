@@ -110,7 +110,7 @@ def iload(vm, frame, offset, bytecode):
     if bytecode[frame.pc] in (21, 22):
         assert isinstance(local, (long, int))
     elif bytecode[frame.pc] == 25:
-        assert isinstance(local, (list, ClassInstance)) or local is null
+        assert isinstance(local, (list, ClassInstance, ArrayClass)) or local is null
     else:
         raise Exception
     frame.push(local)
@@ -177,7 +177,7 @@ def lstore(vm, frame, offset, bytecode):
     if bytecode[frame.pc] in (54, 55):
         assert isinstance(local, (int, long))
     elif bytecode[frame.pc] == 58:
-        assert isinstance(local, (list, ClassInstance)) or local is null
+        assert isinstance(local, (list, ClassInstance, ArrayClass)) or local is null
     frame.insert_local(index, local)
     frame.pc = frame.pc + 1
 
@@ -235,6 +235,14 @@ def pop2(vm, frame, offset, bytecode):
 def dup(vm, frame, offset, bytecode):
     frame.push(frame.stack[-1])
 
+@register_bytecode(90)
+def dupx1(vm, frame, offset, bytecode):
+    value1 = frame.pop()
+    value2 = frame.pop()
+    frame.push(value1)
+    frame.push(value2)
+    frame.push(value1)
+
 @register_bytecode(96)
 def iadd(vm, frame, offset, bytecode):
     frame.push(intmask(intmask(frame.pop())+intmask(frame.pop())))
@@ -267,6 +275,11 @@ def fmul(vm, frame, offset, bytecode):
 def idiv(vm, frame, offset, bytecode):
     b, a = frame.pop(), frame.pop()
     frame.push(intmask(a)/intmask(b))
+
+@register_bytecode(110)
+def fdiv(vm, frame, offset, bytecode):
+    b, a = frame.pop(), frame.pop()
+    frame.push(float(a)/float(b))
 
 @register_bytecode(122)
 def ishr(vm, frame, offset, bytecode):
@@ -512,6 +525,9 @@ def putstatic(vm, frame, offset, bytecode):
 @register_bytecode(180, use_next=2, bc_repr=getstatic_repr)
 def getfield(vm, frame, offset, bytecode):
     field_index = vm.constant_pool_index(bytecode, frame.pc)
+    print 'field index', field_index
+    print 'the class', frame.klass
+    print 'method', frame.method
     field_klass, field_name, field_descriptor = vm.resolve_field(
             frame.klass, field_index, 'Fieldref')
     objectref = frame.pop()
@@ -559,19 +575,25 @@ def invokevirtual_special(vm, frame, offset, bytecode):
         assert new_klass.is_subclass(instance), '%s ! < %s' % (str(new_klass), str(instance))
         new_klass = instance._klass
     if bytecode[frame.pc] == 184:
+        print method
         assert (method.access_flags & ACC_STATIC) != 0
 
-    # find the superclass that contains this method
+    # find the superclass that contains this method (or we have it)
     method_name = Class.method_name(method.name, method.descriptor)
+    print 'invokevirtual', method_name
     while method_name not in new_klass.methods:
+        print new_klass
+        print new_klass.methods.keys()
         new_klass = new_klass.super_class
         if new_klass.super_class == new_klass:
             break
+    print new_klass
+    print new_klass.methods.keys()
     assert method_name in new_klass.methods
 
     new_method = new_klass.methods[method_name]
     vm.run_method(new_klass, new_method)
-    frame.pc = frame.pc + 2
+    frame.pc += 2
 
 def invokeinterface_repr(vm, frame, index, offset, bytecode):
     ref_index = (bytecode[index+1]<<8) | (bytecode[index+2])
@@ -587,10 +609,10 @@ def invokeinterface(vm, frame, offset, bytecode):
     assert zero == 0
     objectref = frame.stack[len(frame.stack)-count]
 
-    method = objectref._klass.get_method(
+    klass, method = objectref._klass.get_method(
             interface_method.name,
             interface_method.descriptor)
-    vm.run_method(objectref._klass, method)
+    vm.run_method(klass, method)
     frame.pc += 4
 
 @register_bytecode(187, use_next=2)

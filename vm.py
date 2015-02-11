@@ -18,9 +18,16 @@ class VM:
         self.frame_stack = [Frame()]
         self.heap = []
 
+
     @property
     def stack(self):
         return self.frame_stack[-1]
+
+    def warmup(self):
+        self.load_class('java/lang/String')
+        self.run_bytecode()
+        self.load_class('java/lang/System')
+        self.run_bytecode()
 
     def load_class(self, class_name):
         if class_name in self.class_cache:
@@ -40,7 +47,8 @@ class VM:
 
         # run <clinit> method of class
         try:
-            self.run_method(klass, klass.get_method('<clinit>', '()V'))
+            _, method = klass.get_method('<clinit>', '()V')
+            self.run_method(klass, method)
             # initialise this method before running any other code
             self.run_bytecode()
         except NoSuchMethodException:
@@ -58,7 +66,7 @@ class VM:
     def resolve_field(self, current_klass, ref_index, expected_field_types=None):
         field_type, field, _  = current_klass.constant_pool.get_object(0, ref_index)
         if expected_field_types:
-            assert field_type in expected_field_types
+            assert field_type in expected_field_types, '%s is not the expected field type' % field_type
         if field_type == 'String':
             string = ClassInstance('java/lang/String', self.load_class('java/lang/String'))
             string.value = map(ord, current_klass.constant_pool.get_string(field[0]))
@@ -72,7 +80,7 @@ class VM:
         field_name, field_descriptor = current_klass.constant_pool.get_name_and_type(field[1])
         klass = self.load_class(klass_descriptor)
         if field_type in ('Methodref', 'InterfaceMethodref'):
-            return klass, klass.get_method(field_name, field_descriptor)
+            return klass.get_method(field_name, field_descriptor)
         elif field_type == 'Fieldref':
             return klass, field_name, field_descriptor
         else:
@@ -161,8 +169,8 @@ class VM:
                 # logging
                 r = ''
                 if bc_repr:
-                    r = 'repr: %s' % bc_repr(self, frame, frame.pc,
-                             bc-start, frame.code.code)
+                    '''r = 'repr: %s' % bc_repr(self, frame, frame.pc,
+                             bc-start, frame.code.code)'''
 
                 logging.debug('pc: %d (%s.%s (%s)) calling bytecode %d:%s' %
                         (frame.pc,
