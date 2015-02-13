@@ -142,7 +142,7 @@ def dloat_n(vm, frame, offset, bytecode):
 @register_bytecode(42, 45)
 def aload_n(vm, frame, offset, bytecode):
     val = frame.local_variables[offset]
-    assert isinstance(val, (Class, ClassInstance, ArrayClass)) or val is null
+    assert isinstance(val, (ClassInstance, ArrayClass)) or val is null
     frame.push(val)
 
 @register_bytecode(46) #iaload
@@ -525,9 +525,6 @@ def putstatic(vm, frame, offset, bytecode):
 @register_bytecode(180, use_next=2, bc_repr=getstatic_repr)
 def getfield(vm, frame, offset, bytecode):
     field_index = vm.constant_pool_index(bytecode, frame.pc)
-    print 'field index', field_index
-    print 'the class', frame.klass
-    print 'method', frame.method
     field_klass, field_name, field_descriptor = vm.resolve_field(
             frame.klass, field_index, 'Fieldref')
     objectref = frame.pop()
@@ -536,8 +533,6 @@ def getfield(vm, frame, offset, bytecode):
     else:
         assert isinstance(objectref, ClassInstance)
         if field_name not in objectref._values:
-            print 'class', objectref._klass
-            print 'class fields', objectref._klass.fields
             value = default_value(objectref._klass.get_field(field_name).descriptor)
         else:
             value = objectref._values[field_name]
@@ -572,23 +567,18 @@ def invokevirtual_special(vm, frame, offset, bytecode):
     # the implemented method
     if bytecode[frame.pc] == 182:
         instance = frame.stack[-len(method.parameters)-1]
-        assert new_klass.is_subclass(instance), '%s ! < %s' % (str(new_klass), str(instance))
+        assert new_klass.is_subclass(instance),\
+            '%s not a subclass of %s' % (str(new_klass), str(instance))
         new_klass = instance._klass
     if bytecode[frame.pc] == 184:
-        print method
         assert (method.access_flags & ACC_STATIC) != 0
 
     # find the superclass that contains this method (or we have it)
     method_name = Class.method_name(method.name, method.descriptor)
-    print 'invokevirtual', method_name
     while method_name not in new_klass.methods:
-        print new_klass
-        print new_klass.methods.keys()
         new_klass = new_klass.super_class
         if new_klass.super_class == new_klass:
             break
-    print new_klass
-    print new_klass.methods.keys()
     assert method_name in new_klass.methods
 
     new_method = new_klass.methods[method_name]
@@ -602,7 +592,6 @@ def invokeinterface_repr(vm, frame, index, offset, bytecode):
 
 @register_bytecode(185, use_next=4, bc_repr=invokeinterface_repr)
 def invokeinterface(vm, frame, offset, bytecode):
-    print frame.stack
     method_index = vm.constant_pool_index(bytecode, frame.pc)
     new_klass, interface_method = vm.resolve_field(frame.klass, method_index)
     count, zero = bytecode[frame.pc+3], bytecode[frame.pc+4]
@@ -662,7 +651,6 @@ def athrow(vm, frame, offset, bytecode):
     frame.raised_exception = frame.pop()
 
 def _checkcast(vm, frame, reference, descriptor):
-    print reference, descriptor
     if not isinstance(reference, ArrayClass):
         klass_name = descriptor
         klass = vm.load_class(klass_name)
@@ -699,16 +687,13 @@ def _checkcast(vm, frame, reference, descriptor):
 
 @register_bytecode(192, use_next=2)
 def checkcast(vm, frame, offset, bytecode):
-    print 'frame', frame.stack
     reference = frame.pop() # S
     frame.pc += 2
     if reference is null:
         frame.push(reference)
         return
-    print(reference)
     descriptor = frame.klass.constant_pool.get_class(
         vm.constant_pool_index(bytecode, frame.pc-2))
-    print descriptor
     if descriptor[0] == '[':
         descriptor = parse_descriptor(descriptor)[0]
 

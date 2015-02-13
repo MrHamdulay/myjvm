@@ -21,8 +21,9 @@ class Frame:
 
         self.klass = klass
         self.method = method
-        if klass or method:
-            assert method.access_flags & ACC_NATIVE == (ACC_NATIVE if native_method else 0)
+        '''if klass or method:
+            assert method.access_flags & ACC_NATIVE == (
+                ACC_NATIVE if native_method else 0)'''
         self.native_method = native_method
         self.code = code
 

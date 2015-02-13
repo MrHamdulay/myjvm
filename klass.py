@@ -27,7 +27,16 @@ class Class(object):
         self.field_values = {}
         self.field_overrides = {}
         self.methods = {}
+        self.method_overrides = {}
         self.attributes = []
+        self.java_instance = None
+
+    @classmethod
+    def array_factory(cls, class_name):
+        assert class_name[0] == '['
+        array = cls(class_name)
+        array.super_class = None # this is later changed to java/lang/Class
+        return array
 
     @property
     def is_array(self):
@@ -76,9 +85,7 @@ class Class(object):
         else:
             klass = instance._klass
         while klass != self and klass != klass.super_class:
-            print klass
             klass = klass.super_class
-        print klass
         return klass == self
 
     def instantiate(self, size=None):
@@ -109,7 +116,6 @@ class Class(object):
         return native_method
 
     def run_method(self, vm, method, method_descriptor):
-        print self, method
         native_method = None
         # handle native methods
         if (method.access_flags & ACC_NATIVE) != 0:
@@ -122,9 +128,10 @@ class Class(object):
         num_args = len(method.parameters) + (0 if is_static else 1)
         arguments = [vm.frame_stack[-1].pop() for i in xrange(num_args)][::-1]
         if not is_static:
-            #print arguments
-            assert arguments[0] is not null, '%s is null' % str(arguments[0])
             instance = arguments[0]
+            assert instance is not null, '%s is null' % str(arguments[0])
+            if method.name in instance._klass.method_overrides:
+                native_method = instance._klass.method_overrides[method.name]
         print 'adding method %s.%s to stack' % (self.name, method.name)
         frame = Frame(
                 parameters=arguments,
@@ -137,13 +144,6 @@ class Class(object):
 
         vm.frame_stack.append(frame)
 
-    def print_(self):
-        print self.constant_pool
-        print self.interfaces
-        print self.fields
-        print self.methods
-        print self.attributes
-
     def __repr__(self):
         return '<Class %s%s> ' % (self.name, ' array' if self.is_array else '')
 
@@ -155,8 +155,10 @@ class Class(object):
             return '%s__%s' % args
         raise Exception
 
-    def override_native_method(self, f):
-        print self.methods
+    def override_native_method(self, name):
+        def wrapper(f):
+            self.method_overrides[name] = f
+        return wrapper
 
 class NativeClass(Class):
     def get_method(self, method_name, type_signature):
@@ -225,6 +227,8 @@ class ArrayClass(ClassInstance):
     @property
     def size(self):
         return len(self.array)
+
+ArrayInstance = ArrayClass
 
 from frame import Frame
 from klasses import classes_with_natives

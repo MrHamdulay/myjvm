@@ -24,21 +24,37 @@ class VM:
         return self.frame_stack[-1]
 
     def warmup(self):
-        self.load_class('java/lang/String')
-        self.run_bytecode()
+        self.init_native_classes()
         self.load_class('java/lang/System')
+        self.run_bytecode()
+        self.load_class('java/lang/String')
         self.run_bytecode()
 
     def load_class(self, class_name):
+        java_Class = None
+        if class_name[0] == 'L' and class_name[-1] == ';':
+            class_name = class_name[1:-1]
+        if class_name != 'java/lang/Class':
+            java_Class = self.load_class('java/lang/Class')
         if class_name in self.class_cache:
             return self.class_cache[class_name]
         if class_name in primitive_classes:
-            self.class_cache[class_name] = Class(class_name)
-            return self.class_cache[class_name]
+            return primitive_classes[class_name]
+
+        if class_name[0] == '[':
+            self.class_cache[class_name] = klass = Class.array_factory(class_name)
+            klass.super_class = java_Class
+            klass.java_instance = java_Class.instantiate()
+            klass.java_instance._values['class_name'] = class_name
+            return klass
 
         klass = self.class_loader.load(class_name)
         self.class_cache[class_name] = klass
-        klass._klass = self.load_class('java/lang/Class')
+        if not java_Class:
+            java_Class = klass
+        klass._klass = java_Class
+        klass.java_instance = java_Class.instantiate()
+        klass.java_instance._values['class_name'] = class_name
 
         # load all supers and interfaces
         if klass.super_class:
@@ -68,14 +84,17 @@ class VM:
         if expected_field_types:
             assert field_type in expected_field_types, '%s is not the expected field type' % field_type
         if field_type == 'String':
-            string = ClassInstance('java/lang/String', self.load_class('java/lang/String'))
-            string._values['value'] = map(ord, current_klass.constant_pool.get_string(field[0]))
+            s = current_klass.constant_pool.get_string(field[0])
+            string = ClassInstance(
+                    'java/lang/String',
+                    self.load_class('java/lang/String'))
+            string._values['value'] = map(ord, s)
+            string._values['count'] = len(s)
             return string
         elif field_type in ('Float', 'Integer'):
             return field[0]
         elif field_type == 'Class':
-            return self.load_class(current_klass.constant_pool.get_string(field[0]))
-        print current_klass, ref_index, field_type, field, _
+            return self.load_class(current_klass.constant_pool.get_string(field[0])).java_instance
         klass_descriptor = current_klass.constant_pool.get_class(field[0])
         field_name, field_descriptor = current_klass.constant_pool.get_name_and_type(field[1])
         klass = self.load_class(klass_descriptor)
@@ -101,19 +120,12 @@ class VM:
         found = False
         while self.frame_stack:
             frame = self.frame_stack[-1]
-            print frame.pc
-            print 'exception', raised_exception
-            print 'current frame', frame
-            if frame.method:
-                print 'current frame method', frame.method.name
-            print self.frame_stack
             try:
                 exceptions = get_attribute(frame.method, 'CodeAttribute').exceptions
             except NoSuchAttributeError:
                 exceptions = []
             for start_pc, end_pc, jump_pc, thrown_class in exceptions:
                 if start_pc <= frame.pc < end_pc:
-                    print 'thrown class', thrown_class
                     caught = False
                     if thrown_class == 0:
                         caught = True
@@ -123,7 +135,6 @@ class VM:
                         caught = resolved_thrown_class.is_subclass(raised_exception)
 
                     if caught:
-                        print 'jumping to', jump_pc
                         frame.push(raised_exception)
                         frame.raised_exception = None
                         frame.pc = jump_pc
@@ -155,10 +166,10 @@ class VM:
                     self.frame_stack[-1].push(return_value)
                 else:
                     assert return_value is void
-                print 'returning to method %s.%s pc:%d' % (
-                        self.frame_stack[-1].klass.name,
-                        self.frame_stack[-1].method.name,
-                        self.frame_stack[-1].pc)
+                #print 'returning to method %s.%s pc:%d' % (
+                #        self.frame_stack[-1].klass.name,
+                #        self.frame_stack[-1].method.name,
+                #        self.frame_stack[-1].pc)
                 continue
 
             bc = frame.code.code[frame.pc]
@@ -169,8 +180,8 @@ class VM:
                 # logging
                 r = ''
                 if bc_repr:
-                    '''r = 'repr: %s' % bc_repr(self, frame, frame.pc,
-                             bc-start, frame.code.code)'''
+                    r = 'repr: %s' % bc_repr(self, frame, frame.pc,
+                             bc-start, frame.code.code)
 
                 logging.debug('pc: %d (%s.%s (%s)) calling bytecode %d:%s' %
                         (frame.pc,
@@ -188,9 +199,8 @@ class VM:
                         self,
                         frame, bc - start,
                         frame.code.code)
-                logging.debug(str(frame.stack))
                 if frame.raised_exception:
-                    print frame.pretty_code(self, around=20)
+                    #print frame.pretty_code(self, around=20)
                     self.handle_exception()
                 else:
                     frame.pc += 1
@@ -206,3 +216,11 @@ class VM:
                     frame.pc,
                     frame.code.code[frame.pc]))
 
+    def init_native_classes(self):
+        pc = primitive_classes
+        for type in 'Ddouble Bbyte Cchar Ffloat Iint Jlong Sshort Zboolean'.split():
+            name = type[1:]
+            klass = Class(name)
+            klass.java_instance = self.load_class('java/lang/Class').instantiate()
+            klass.java_instance._values['class_name'] = name
+            pc[type[0]] = pc[name] = klass

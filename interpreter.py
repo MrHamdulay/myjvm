@@ -13,11 +13,9 @@ class Interpreter:
     def start(self):
         self.vm.class_loader.load_jar('klasses/rt.jar')
         self.vm.warmup()
-        print 's1', self.vm.frame_stack
         # initialise klass
         klass = self.vm.load_class(self.initial_class_name)
         self.vm.frame_stack[0].push('java')
-        print 'start', self.vm.frame_stack, self.vm.frame_stack[0].stack
 
         # run initial method
         self.vm.run_method(klass, klass.get_method('main', '([Ljava/lang/String;)V'))

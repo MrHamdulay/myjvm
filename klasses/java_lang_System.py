@@ -1,13 +1,29 @@
 import time
 from classconstants import void, null
 from klass import Class
+from util import make_string
 
 
 def registerNatives(klass, vm, method, frame):
-    print '!!! begin'
+    Properties = vm.load_class('java/util/Properties')
+    @Properties.override_native_method('getProperty')
+    def getProperty(klass, vm, method, frame):
+        prop = frame.get_local(1)
+        prop = ''.join(map(chr, prop._values['value']))
+        if prop == 'sun.reflect.noCaches':
+            return make_string(vm, 'false')
+
+    @Properties.override_native_method('setProperty')
+    def setProperty(klass, vm, method, frame):
+        prop = frame.get_local(1)
+        print 'setting property!', prop
+        raise Exception
+
+
+
     OutputStream = vm.load_class('java/io/OutputStream')
     PrintOutputStream = Class('java/io/PrintOutputStream', super_class=OutputStream)
-    @PrintOutputStream.override_native_method
+    @PrintOutputStream.override_native_method('write')
     def write(*args):
         print 'write', args
 
@@ -19,6 +35,7 @@ def registerNatives(klass, vm, method, frame):
     vm.stack.push(system_out_stream)
     klass.field_overrides['out'] = system_out
     klass.field_overrides['security'] = null
+    klass.field_overrides['props'] = Properties.instantiate()
 
     print PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')
     klass, method = PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')
