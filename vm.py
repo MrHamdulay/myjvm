@@ -10,6 +10,7 @@ from classconstants import *
 from descriptor import parse_descriptor
 from klasses import primitive_classes
 from utils import get_attribute, NoSuchAttributeError, make_string
+from arithmetic import *
 
 from bytecode import bytecodes
 
@@ -101,7 +102,9 @@ class VM:
         if field_type == 'String':
             s = current_klass.constant_pool.get_string(field[0])
             return make_string(self, s)
-        elif field_type in ('Float', 'Integer'):
+        elif field_type == 'Integer':
+            return intmask(field[0])
+        elif field_type == 'Float':
             return field[0]
         elif field_type == 'Class':
             return self.load_class(current_klass.constant_pool.get_string(field[0])).java_instance
