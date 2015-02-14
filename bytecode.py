@@ -306,8 +306,9 @@ def ddiv(vm, frame, offset, bytecode):
 
 @register_bytecode(122)
 def ishr(vm, frame, offset, bytecode):
-    a, b = frame.pop(), frame.pop()
+    b, a = frame.pop(), frame.pop()
     s = b & 0x1f
+    print a, b, s
     assert isinstance(a, int) and isinstance(b, int)
     frame.push(intmask(a>>s))
 

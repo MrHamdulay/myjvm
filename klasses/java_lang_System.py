@@ -28,7 +28,7 @@ def registerNatives(klass, vm, method, frame):
         if prop == 'sun.reflect.noCaches':
             return make_string(vm, 'false')
         elif prop == 'file.encoding':
-            return make_string(vm, 'US_ASCII')
+            return make_string(vm, 'utf-8')
         raise Exception
 
     @Properties.override_native_method('setProperty')

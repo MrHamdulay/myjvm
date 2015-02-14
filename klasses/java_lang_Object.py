@@ -6,3 +6,6 @@ def registerNatives(klass, vm, method, frame):
 
 def hashCode(klass, vm, method, frame):
     return id(frame.get_local(0))
+
+def getClass(klass, vm, method, frame):
+    return frame.get_local(0)._klass.java_instance

@@ -34,13 +34,21 @@ def getDeclaredFields0(klass, vm, method, frame):
         fields.array[i] = f
     return fields
 
+def getDeclaredClasses0(klass, vm, method, frame):
+    pass
+
 def desiredAssertionStatus0(klass, vm, method, frame):
     return 0
 
 def forName0(klass, vm, method, frame):
     classname = to_python_string(frame.get_local(0))
     try:
-        return vm.load_class(classname).java_instance
+        return vm.load_class(classname.replace('.', '/')).java_instance
     except ClassNotFoundException:
         vm.throw_exception(frame, 'java/lang/ClassNotFoundException')
         return null
+
+def isInterface(klass, vm, method, frame):
+    java_instance = frame.get_local(0)
+    klass = vm.load_class(java_instance._values['class_name'])
+    return klass.is_interface

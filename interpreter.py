@@ -13,6 +13,7 @@ class Interpreter:
 
     def start(self):
         self.vm.class_loader.load_jar('klasses/rt.jar')
+        self.vm.class_loader.load_jar('klasses/charsets.jar')
         self.vm.warmup()
         # initialise klass
         klass = self.vm.load_class(self.initial_class_name)
