@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import sys
 #import logging
 #import os.path
@@ -18,7 +19,7 @@ class Interpreter:
         self.vm.frame_stack[0].push('java')
 
         # run initial method
-        self.vm.run_method(klass, klass.get_method('main', '([Ljava/lang/String;)V'))
+        self.vm.run_method(klass, klass.get_method('main', '([Ljava/lang/String;)V')[1])
         self.vm.run_bytecode()
 
 

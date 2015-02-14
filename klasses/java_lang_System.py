@@ -1,17 +1,35 @@
+from __future__ import absolute_import
 import time
 from classconstants import void, null
-from klass import Class
-from util import make_string
+from klass import Class, ArrayInstance
+from utils import make_string
 
+def arraycopy(klass, vm, method, frame):
+    src = frame.get_local(0)
+    srcPos = frame.get_local(1)
+    dest = frame.get_local(2)
+    destPos = frame.get_local(3)
+    length = frame.get_local(4)
+    if src is null or dest is null:
+        vm.throw_exception(frame, 'java/lang/NullPointerException')
+        return
+    assert isinstance(src, ArrayInstance)
+    assert isinstance(dest, ArrayInstance)
+    for i in xrange(length):
+        dest.array[destPos+i] = src.array[srcPos+i]
+    return void
 
 def registerNatives(klass, vm, method, frame):
     Properties = vm.load_class('java/util/Properties')
     @Properties.override_native_method('getProperty')
     def getProperty(klass, vm, method, frame):
         prop = frame.get_local(1)
-        prop = ''.join(map(chr, prop._values['value']))
+        prop = ''.join(map(chr, prop._values['value'].array))
         if prop == 'sun.reflect.noCaches':
             return make_string(vm, 'false')
+        elif prop == 'file.encoding':
+            return make_string(vm, 'UTF8')
+        raise Exception
 
     @Properties.override_native_method('setProperty')
     def setProperty(klass, vm, method, frame):
@@ -39,8 +57,7 @@ def registerNatives(klass, vm, method, frame):
 
     print PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')
     klass, method = PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')
-    vm.run_method(klass, method)
-    vm.run_bytecode()
+    vm.wrap_run_method(system_out, method, system_out_stream)
     raise Exception
     return void
 

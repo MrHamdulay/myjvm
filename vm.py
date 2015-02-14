@@ -1,4 +1,7 @@
+from __future__ import absolute_import
 import logging
+import exceptions
+import sys
 
 from defaultclassloader import DefaultClassLoader
 from frame import Frame
@@ -6,7 +9,7 @@ from klass import NoSuchMethodException, ClassInstance, Class
 from classconstants import *
 from descriptor import parse_descriptor
 from klasses import primitive_classes
-from utils import get_attribute, NoSuchAttributeError
+from utils import get_attribute, NoSuchAttributeError, make_string
 
 from bytecode import bytecodes
 
@@ -25,10 +28,9 @@ class VM:
 
     def warmup(self):
         self.init_native_classes()
-        self.load_class('java/lang/System')
-        self.run_bytecode()
-        self.load_class('java/lang/String')
-        self.run_bytecode()
+        #self.load_class('java/lang/String')
+        #self.load_class('java/nio/charset/Charset')
+        #self.load_class('java/lang/System')
 
     def load_class(self, class_name):
         java_Class = None
@@ -64,9 +66,7 @@ class VM:
         # run <clinit> method of class
         try:
             _, method = klass.get_method('<clinit>', '()V')
-            self.run_method(klass, method)
-            # initialise this method before running any other code
-            self.run_bytecode()
+            self.wrap_run_method(klass, method)
         except NoSuchMethodException:
             pass
 
@@ -75,6 +75,21 @@ class VM:
     def run_method(self, klass, method):
         klass.run_method(self, method, method.descriptor)
 
+    def wrap_run_method(self, instance, method, *args):
+        klass = instance
+        frame = Frame(max_locals=1)
+        if isinstance(instance, ClassInstance):
+            klass = instance._klass
+            frame.push(instance)
+        if args:
+            frame.stack += args
+        self.frame_stack.append(frame)
+        self.run_method(klass, method)
+        self.run_bytecode()
+        self.frame_stack.pop()
+        if frame.stack:
+            return frame.stack.pop()
+        return void
 
     def constant_pool_index(self, bytecode, index):
         return (bytecode[index+1]<<8) | (bytecode[index+2])
@@ -85,12 +100,7 @@ class VM:
             assert field_type in expected_field_types, '%s is not the expected field type' % field_type
         if field_type == 'String':
             s = current_klass.constant_pool.get_string(field[0])
-            string = ClassInstance(
-                    'java/lang/String',
-                    self.load_class('java/lang/String'))
-            string._values['value'] = map(ord, s)
-            string._values['count'] = len(s)
-            return string
+            return make_string(self, s)
         elif field_type in ('Float', 'Integer'):
             return field[0]
         elif field_type == 'Class':
@@ -142,12 +152,12 @@ class VM:
                         break
             if found:
                 break
-            logging.debug('with exception table of %s' % exceptions)
             self.frame_stack.pop()
         if not found:
             print 'Unable to handle exception %s' % raised_exception
             print raised_exception.stacktrace
             sys.exit(1)
+        print self.frame_stack
 
 
     def run_bytecode(self):
@@ -161,15 +171,19 @@ class VM:
             if frame.method and frame.native_method is not None:
                 return_value = frame.native_method(
                         frame.klass, self, frame.method, frame)
-                self.frame_stack.pop()
-                if frame.method.return_type != 'V':
-                    self.frame_stack[-1].push(return_value)
+                if frame.raised_exception:
+                    self.handle_exception()
                 else:
-                    assert return_value is void
-                #print 'returning to method %s.%s pc:%d' % (
-                #        self.frame_stack[-1].klass.name,
-                #        self.frame_stack[-1].method.name,
-                #        self.frame_stack[-1].pc)
+                    self.frame_stack.pop()
+                    if frame.method.return_type != 'V':
+                        self.frame_stack[-1].push(return_value)
+                    else:
+                        assert return_value is void
+                print 'returning to method %s.%s pc:%d return value %s' % (
+                        self.frame_stack[-1].klass.name,
+                        self.frame_stack[-1].method.name,
+                        self.frame_stack[-1].pc,
+                        return_value)
                 continue
 
             bc = frame.code.code[frame.pc]

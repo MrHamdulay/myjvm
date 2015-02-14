@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import operator
 import logging
 import struct
@@ -8,7 +9,7 @@ bytecodes = {}
 from rpython.rlib.rarithmetic import longlongmask
 
 from classconstants import *
-from klass import Class, ClassInstance, ArrayClass
+from klass import Class, ClassInstance, ArrayInstance, ArrayClass
 from descriptor import parse_descriptor, descriptor_is_array
 from arithmetic import *
 
@@ -110,7 +111,7 @@ def iload(vm, frame, offset, bytecode):
     if bytecode[frame.pc] in (21, 22):
         assert isinstance(local, (long, int))
     elif bytecode[frame.pc] == 25:
-        assert isinstance(local, (list, ClassInstance, ArrayClass)) or local is null
+        assert isinstance(local, (ClassInstance, ArrayClass)) or local is null
     else:
         raise Exception
     frame.push(local)
@@ -150,7 +151,7 @@ def aload_n(vm, frame, offset, bytecode):
 def iaload(vm, frame, offset, bytecode):
     index, array = frame.pop(), frame.pop()
     assert index >= 0 and index < len(array), '%d %s' % (index, array)
-    frame.push(array[index])
+    frame.push(array.array[index])
 
 @register_bytecode(50)
 def aaload(vm, frame, offset, bytecode):
@@ -166,7 +167,7 @@ def baload(vm, frame, offset, bytecode):
 @register_bytecode(52)
 def caload(vm, frame, offset, bytecode):
     index, array = frame.pop(), frame.pop()
-    frame.push(charmask(array[index]))
+    frame.push(charmask(array.array[index]))
 
 @register_bytecode(54, use_next=1, bc_repr=lstore_repr) #istore
 @register_bytecode(55, use_next=1, bc_repr=lstore_repr) #lstore
@@ -177,7 +178,7 @@ def lstore(vm, frame, offset, bytecode):
     if bytecode[frame.pc] in (54, 55):
         assert isinstance(local, (int, long))
     elif bytecode[frame.pc] == 58:
-        assert isinstance(local, (list, ClassInstance, ArrayClass)) or local is null
+        assert isinstance(local, (ClassInstance, ArrayClass)) or local is null
     frame.insert_local(index, local)
     frame.pc = frame.pc + 1
 
@@ -205,7 +206,7 @@ def iastore(vm, frame, offset, bytecode):
     value, index, array = intmask(frame.pop()), frame.pop(), frame.pop()
     assert array is not null
     assert index >= 0 and index < len(array)
-    array[index] = value
+    array.array[index] = value
 
 @register_bytecode(83)
 def aastore(vm, frame, offset, bytecode):
@@ -218,8 +219,8 @@ def aastore(vm, frame, offset, bytecode):
 def castore(vm, frame, offset, bytecode):
     value, index, arrayref = frame.pop(), frame.pop(), frame.pop()
     assert arrayref is not null
-    assert index >= 0 and index < len(arrayref)
-    arrayref[index] = charmask(value)
+    assert index >= 0 and index < len(arrayref.array)
+    arrayref.array[index] = charmask(value)
 
 @register_bytecode(87)
 def pop(vm, frame, offset, bytecode):
@@ -419,6 +420,11 @@ def l2d(vm, frame, offset, bytecode):
 def f2i(vm, frame, offset, bytecode):
     frame.push(int(frame.pop()))
 
+@register_bytecode(146)
+def i2c(vm, frame, offset, bytecode):
+    v = frame.pop()
+    frame.push(charmask(v))
+
 @register_bytecode(148)
 def lcmp(vm, frame, offset, bytecode):
     v1, v2 = frame.pop(), frame.pop()
@@ -509,8 +515,10 @@ def getstatic(vm, frame, offset, bytecode):
             frame.klass, ref_index)
     if field_name in field_klass.field_overrides:
         frame.push(field_klass.field_overrides[field_name])
-    else:
+    elif field_name in field_klass.field_values:
         frame.push(field_klass.field_values[field_name])
+    else:
+        frame.push(default_value(field_descriptor))
     frame.pc = frame.pc + 2
 
 @register_bytecode(179, use_next=2, bc_repr=getstatic_repr)
@@ -567,6 +575,9 @@ def invokevirtual_special(vm, frame, offset, bytecode):
     # the implemented method
     if bytecode[frame.pc] == 182:
         instance = frame.stack[-len(method.parameters)-1]
+        if instance is null:
+            vm.throw_exception(frame, 'java/lang/NullPointerException')
+            return
         assert new_klass.is_subclass(instance),\
             '%s not a subclass of %s' % (str(new_klass), str(instance))
         new_klass = instance._klass
@@ -613,15 +624,16 @@ def new(vm, frame, offset, bytecode):
     frame.push(instance)
     frame.pc = frame.pc  + 2
 
+atypes = {4: 'boolean', 5: 'char', 6: 'float', 7: 'double', 8: 'byte', 9: 'short', 10: 'int', 11: 'long'}
 @register_bytecode(188, use_next=1)
 def newarray(vm, frame, offset, bytecode):
     atype = bytecode[frame.pc+1]
-    #types = {4: 'str', 5: 'str', 6: 'float', 7: 'int', 8:
 
     size = frame.pop()
     assert isinstance(size, int)
     assert size >= 0
-    frame.push([0]*size)
+    array = ArrayInstance(vm.load_class(atypes[atype]), size)
+    frame.push(array)
     frame.pc = frame.pc + 1
 
 @register_bytecode(189, use_next=2)
@@ -639,12 +651,9 @@ def anewarray(vm, frame, offset, bytecode):
 @register_bytecode(190)
 def arraylength(vm, frame, offset, bytecode):
     arrayref = frame.pop()
-    if isinstance(arrayref, list):
-        frame.push(len(arrayref))
-    elif isinstance(arrayref, ArrayClass):
-        frame.push(arrayref.size)
-    else:
-        raise Exception
+    print arrayref
+    assert isinstance(arrayref, ArrayClass)
+    frame.push(arrayref.size)
 
 @register_bytecode(191)
 def athrow(vm, frame, offset, bytecode):

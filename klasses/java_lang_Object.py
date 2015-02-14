@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from classconstants import void
 
 def registerNatives(klass, vm, method, frame):

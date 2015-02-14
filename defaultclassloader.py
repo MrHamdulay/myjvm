@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import os.path
 try:
     # let's not use rzipfile for now (it's really really slow in python)
@@ -9,6 +10,7 @@ except:
     from zipfile import ZipFile
 
 from classreader import ClassReader
+from excep import ClassNotFoundException
 
 class DefaultClassLoader:
     def __init__(self, classpath):
@@ -46,7 +48,7 @@ class DefaultClassLoader:
                     class_file = open(class_filename).read()
                     break
             else:
-                raise Exception('class file not found: %s' % classname)
+                raise ClassNotFoundException('class file not found: %s' % classname)
 
         assert class_file is not None
 

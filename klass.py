@@ -1,6 +1,6 @@
+from __future__ import absolute_import
 import logging
 
-from utils import get_attribute
 from constantpool import ConstantPool
 from classtypes import CodeAttribute, Method
 from classconstants import ACC_STATIC, ACC_NATIVE, ACC_INTERFACE, void, null
@@ -83,6 +83,7 @@ class Class(object):
         if isinstance(instance, Class):
             return self.name in ('java/lang/Class', 'java/lang/Object')
         else:
+            print instance
             klass = instance._klass
         while klass != self and klass != klass.super_class:
             klass = klass.super_class
@@ -126,6 +127,8 @@ class Class(object):
         # may contain an instance argument (not STATIC
         is_static = method.access_flags & ACC_STATIC != 0
         num_args = len(method.parameters) + (0 if is_static else 1)
+        print num_args
+        print vm.frame_stack[-1].stack
         arguments = [vm.frame_stack[-1].pop() for i in xrange(num_args)][::-1]
         if not is_static:
             instance = arguments[0]
@@ -204,9 +207,9 @@ class ClassInstance(object):
         self.natives = {}
 
     def __repr__(self):
-        if self._klass_name == 'java/lang/String':
+        if self._klass_name == 'java/lang/String' and self._values.get('value'):
             return '<String "%s">' % (''.join(chr(x)
-                for x in self._values['value']))
+                for x in self._values['value'].array))
         return '<Instance of "%s">' % (
             self._klass_name)
         return '<Instance of "%s" values:%s>' % (
@@ -222,7 +225,12 @@ class ArrayClass(ClassInstance):
         self.array = [null] * size
 
     def __repr__(self):
+        if len(self.array) < 10:
+            return '<Array %s %s> ' % (self._klass.name, self.array)
         return '<Array %s size=%d> ' % (self._klass.name, len(self.array))
+
+    def __len__(self):
+        return len(self.array)
 
     @property
     def size(self):
@@ -232,3 +240,4 @@ ArrayInstance = ArrayClass
 
 from frame import Frame
 from klasses import classes_with_natives
+from utils import get_attribute

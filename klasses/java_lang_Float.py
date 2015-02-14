@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import struct
 
 def floatToRawIntBits(klass, vm, method, frame):
