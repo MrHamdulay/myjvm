@@ -53,9 +53,13 @@ def lconst_n(vm, frame, offset, bytecode):
 def fconst_n(vm, frame, offset, bytecode):
     frame.push(float(offset))
 
+@register_bytecode(14, 15)
+def dconst_n(vm, frame, offset, bytecode):
+    frame.push(float(offset))
+
 @register_bytecode(16, use_next=1)
 def bipush(vm, frame, offset, bytecode):
-    frame.push(bytecode[frame.pc+1])
+    frame.push(bytemask(bytecode[frame.pc+1]))
     frame.pc = frame.pc+1
 
 @register_bytecode(17, use_next=2)
@@ -195,6 +199,14 @@ def lstore_n(vm, frame, offset, bytecode):
     local = frame.pop()
     frame.insert_local(offset, longlongmask(local))
 
+@register_bytecode(67, 70)
+def fstore_n(vm, frame, offset, bytecode):
+    frame.insert_local(offset, float(frame.pop()))
+
+@register_bytecode(71, 74)
+def dstore_n(vm, frame, offset, bytecode):
+    frame.insert_local(offset, float(frame.pop()))
+
 @register_bytecode(75, 78)
 def astore(vm, frame, offset, bytecode):
     reference = frame.pop()
@@ -277,8 +289,18 @@ def idiv(vm, frame, offset, bytecode):
     b, a = frame.pop(), frame.pop()
     frame.push(intmask(a)/intmask(b))
 
+@register_bytecode(109)
+def ldiv(vm, frame, offset, bytecode):
+    b, a = frame.pop(), frame.pop()
+    frame.push(longlongmask(a)/longlongmask(b))
+
 @register_bytecode(110)
 def fdiv(vm, frame, offset, bytecode):
+    b, a = frame.pop(), frame.pop()
+    frame.push(float(a)/float(b))
+
+@register_bytecode(111)
+def ddiv(vm, frame, offset, bytecode):
     b, a = frame.pop(), frame.pop()
     frame.push(float(a)/float(b))
 
@@ -333,6 +355,7 @@ def integer_comparison(name, operator):
         b, a = frame.pop(), frame.pop()
         assert isinstance(a, int) and isinstance(b, int)
         if operator(a, b):
+            print 'pass'
             frame.pc = decode_signed_offset(bytecode, frame.pc)-1
             return
         frame.pc = frame.pc+2
@@ -419,6 +442,10 @@ def l2d(vm, frame, offset, bytecode):
 @register_bytecode(139)
 def f2i(vm, frame, offset, bytecode):
     frame.push(int(frame.pop()))
+
+@register_bytecode(145)
+def i2b(vm, frame, offset, bytecode):
+    frame.push(bytemask(frame.pop()))
 
 @register_bytecode(146)
 def i2c(vm, frame, offset, bytecode):

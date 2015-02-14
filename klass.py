@@ -17,6 +17,7 @@ class Class(object):
             super_class=None,
             vm=None):
         self._klass = None
+        self.primitive = False
         self.name = name if name else self.__class__.__name__
         self.major_version, self.minor_version = -1, -1
         self.constant_pool = ConstantPool(0)
@@ -222,7 +223,10 @@ class ArrayClass(ClassInstance):
         assert isinstance(klass, Class)
         self._klass = klass
         self._klass_name = klass.name
-        self.array = [null] * size
+        if klass.primitive:
+            self.array = [0] * size
+        else:
+            self.array = [null] * size
 
     def __repr__(self):
         if len(self.array) < 10:

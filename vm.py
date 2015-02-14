@@ -155,7 +155,7 @@ class VM:
             self.frame_stack.pop()
         if not found:
             print 'Unable to handle exception %s' % raised_exception
-            print raised_exception.stacktrace
+            #print raised_exception.stacktrace
             sys.exit(1)
         print self.frame_stack
 
@@ -237,4 +237,5 @@ class VM:
             klass = Class(name)
             klass.java_instance = self.load_class('java/lang/Class').instantiate()
             klass.java_instance._values['class_name'] = name
+            klass.primitive = True
             pc[type[0]] = pc[name] = klass

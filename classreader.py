@@ -1,5 +1,7 @@
+from __future__ import absolute_import
 import sys
 import logging
+import struct
 
 from descriptor import parse_descriptor
 from classconstants import *
@@ -76,34 +78,10 @@ class ClassReader:
             integer = self._read_byte4()
             return ConstantPoolItem(tag, [integer])
         elif tag == CONSTANT_Float:
-            bytes = self._read_byte4()
-            if bytes == 0x7f800000:
-                value = float('+inf')
-            elif bytes == 0xff800000:
-                value = float('-inf')
-            elif 0x7f800001 <= bytes <= 0x7fffffff or 0xff800001 <= bytes <= 0xffffffff:
-                value = float('nan')
-            else:
-                s = 1 if ((bytes >> 31) == 0) else -1
-                e = ((bytes >> 23) & 0xff)
-                m = ((bytes & 0x7fffff) << 1) if e == 0 else (bytes & 0x7fffff) | 0x800000
-                value = s * e * m * float('2e-150')
+            value = struct.unpack('>f', ''.join(map(chr, [self._read_byte() for i in xrange(4)])))[0]
             return ConstantPoolItem(tag, [value])
         elif tag == CONSTANT_Double:
-            high_bytes = self._read_byte4()
-            low_bytes = self._read_byte4()
-            if high_bytes == 0x7ff00000 and low_bytes == 0x00000000:
-                value = float('+inf')
-            elif high_bytes == 0xfff00000 and low_bytes == 00000000:
-                value = float('-inf')
-            elif (0x7ff00000 <= high_bytes <= 0x7fffffff) or (0xfff00000 <= high_bytes <= 0xffffffff):
-                value = float('nan')
-            else:
-                bytes = (high_bytes<<32)+low_bytes
-                s = 1 if ((bytes >> 63) == 0) else -1
-                e = ((bytes >> 52) & 0x7ffL)
-                m = ((bytes & 0xfffffffffffffL) << 1) if e == 0 else (bytes & 0xfffffffffffffL) | 0x10000000000000L
-                value = s * e * m * float('2e-150')
+            value = struct.unpack('>d', ''.join(map(chr, [self._read_byte() for i in xrange(8)])))[0]
             return ConstantPoolItem(tag, [value])
         elif tag == CONSTANT_Long:
             high_bytes = self._read_byte4()
