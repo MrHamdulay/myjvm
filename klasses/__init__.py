@@ -2,6 +2,7 @@ import java_lang_System
 import java_lang_Object
 import java_lang_Class
 import java_lang_Float
+import java_lang_String
 import java_lang_Throwable
 import java_lang_Double
 import java_lang_Thread
@@ -18,6 +19,7 @@ classes_with_natives = {
         'java/lang/Throwable': java_lang_Throwable,
         'java/lang/Double': java_lang_Double,
         'java/lang/Thread': java_lang_Thread,
+        'java/lang/String': java_lang_String,
         'java/security/AccessController': java_security_AccessController,
         'sun/misc/VM': sun_misc_VM,
         'sun/misc/Unsafe': sun_misc_Unsafe,

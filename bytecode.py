@@ -721,7 +721,6 @@ def _checkcast(vm, frame, reference, descriptor):
                 reference._klass.instantiate(),
                 descriptor[1:])
 
-
 @register_bytecode(192, use_next=2)
 def checkcast(vm, frame, offset, bytecode):
     reference = frame.pop() # S
@@ -731,13 +730,14 @@ def checkcast(vm, frame, offset, bytecode):
         return
     descriptor = frame.klass.constant_pool.get_class(
         vm.constant_pool_index(bytecode, frame.pc-2))
+    print descriptor
     if descriptor[0] == '[':
         descriptor = parse_descriptor(descriptor)[0]
 
     if _checkcast(vm, frame, reference, descriptor):
         frame.push(reference)
     else:
-        frame.raised_exception = 'ClassCastException'
+        vm.throw_exception(frame, 'java/lang/ClassCastException')
 
 
 @register_bytecode(193, use_next=2)
