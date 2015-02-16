@@ -604,6 +604,9 @@ def invokevirtual_special(vm, frame, offset, bytecode):
     if bytecode[frame.pc] == 182:
         instance = frame.stack[-len(method.parameters)-1]
         if instance is null:
+            # remove all our method parameters
+            for i in xrange(len(method.parameters)+1):
+                frame.pop()
             vm.throw_exception(frame, 'java/lang/NullPointerException')
             return
         assert new_klass.is_subclass(instance),\
@@ -636,6 +639,7 @@ def invokeinterface(vm, frame, offset, bytecode):
     count, zero = bytecode[frame.pc+3], bytecode[frame.pc+4]
     assert zero == 0
     objectref = frame.stack[len(frame.stack)-count]
+    assert objectref is not null
 
     klass, method = objectref._klass.get_method(
             interface_method.name,
