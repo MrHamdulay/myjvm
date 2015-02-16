@@ -29,7 +29,9 @@ def registerNatives(klass, vm, method, frame):
             return make_string(vm, 'false')
         elif prop == 'file.encoding':
             return make_string(vm, 'utf-8')
-        raise Exception
+        elif prop in ('java.security.debug', 'java.security.auth.debug'):
+            return make_string(vm, 'false')
+        raise Exception('unknown property %s'  % prop)
 
     @Properties.override_native_method('setProperty')
     def setProperty(klass, vm, method, frame):
@@ -58,7 +60,6 @@ def registerNatives(klass, vm, method, frame):
     print PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')
     klass, method = PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')
     vm.wrap_run_method(system_out, method, system_out_stream)
-    raise Exception
     return void
 
 def nanoTime(klass, vm, method, frame):

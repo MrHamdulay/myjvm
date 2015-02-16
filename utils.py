@@ -20,4 +20,4 @@ def make_string(vm, value):
     return string
 
 def to_python_string(string):
-    return ''.join(map(chr, string._values['value'].array))
+    return ''.join(map(unichr, string._values['value'].array))

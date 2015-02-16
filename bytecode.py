@@ -34,6 +34,9 @@ def decode_signed_offset(bytecode, pc):
     jump = struct.unpack('>h', chr(bytecode[pc+1])+chr(bytecode[pc+2]))[0]+pc
     return jump
 
+def decode_signed_int(bytecode, pc):
+    return struct.unpack('>i', ''.join(map(chr, bytecode[pc:pc+4])))[0]
+
 @register_bytecode(1)
 def aconst_null(vm, frame, offset, bytecode):
     frame.push(null)
@@ -69,7 +72,7 @@ def sipush(vm, frame, offset, bytecode):
 
 def ldc_repr(vm, frame, index, offset, bytecode):
     constant_pool_index = bytecode[index+1]
-    return str(vm.resolve_field(frame.klass, constant_pool_index))
+    return unicode(vm.resolve_field(frame.klass, constant_pool_index))
 
 @register_bytecode(18, use_next=1, bc_repr=ldc_repr)
 def ldc(vm, frame, offset, bytecode):
@@ -80,7 +83,7 @@ def ldc(vm, frame, offset, bytecode):
 
 def ldcw_repr(vm, frame, index, offset, bytecode):
     constant_pool_index = (bytecode[index+1] << 8) +  bytecode[index+2]
-    return str(vm.resolve_field(frame.klass, constant_pool_index))
+    return unicode(vm.resolve_field(frame.klass, constant_pool_index))
 
 @register_bytecode(19, use_next=2, bc_repr=ldcw_repr)
 def ldc_w(vm, frame, offset, bytecode):
@@ -93,14 +96,14 @@ def ldc2_repr(vm, frame, index, offset, bytecode):
     index = (bytecode[index+1] << 8) +  bytecode[index+2]
     field = frame.klass.constant_pool.get_object(
             (CONSTANT_Double, CONSTANT_Long), index)[0][0]
-    return str(field)
+    return unicode(field)
 
 @register_bytecode(20, use_next=2, bc_repr=ldc2_repr)
 def ldc2_w(vm, frame, offset, bytecode):
     index = (bytecode[frame.pc+1] << 8) +  bytecode[frame.pc+2]
     field = frame.klass.constant_pool.get_object(
             (CONSTANT_Double, CONSTANT_Long), index)[0][0]
-    assert isinstance(field, (float, int, long)), 'incorrect type %s' % str(field)
+    assert isinstance(field, (float, int, long)), 'incorrect type %s' % unicode(field)
     frame.push(field)
     frame.pc = frame.pc+2
 
@@ -122,7 +125,7 @@ def iload(vm, frame, offset, bytecode):
     frame.pc = frame.pc+1
 
 def iload_n_repr(vm, frame, index, offset, bytecode):
-    return str(offset)
+    return unicode(offset)
 
 @register_bytecode(26, 29, bc_repr=iload_n_repr)
 def iload_n(vm, frame, offset, bytecode):
@@ -166,12 +169,17 @@ def aaload(vm, frame, offset, bytecode):
 def baload(vm, frame, offset, bytecode):
     index, array = frame.pop(), frame.pop()
     assert 0 <= index < len(array)
-    frame.push(bytemask(array[index]))
+    frame.push(bytemask(array.array[index]))
 
 @register_bytecode(52)
 def caload(vm, frame, offset, bytecode):
     index, array = frame.pop(), frame.pop()
-    frame.push(charmask(array.array[index]))
+    if array is null:
+        vm.throw_exception(frame, 'java/lang/NullPointerException')
+    elif index < 0 or index >= len(array):
+        vm.throw_exception(frame, 'java/lang/ArrayIndexOutOfBoundsException')
+    else:
+        frame.push(charmask(array.array[index]))
 
 @register_bytecode(54, use_next=1, bc_repr=lstore_repr) #istore
 @register_bytecode(55, use_next=1, bc_repr=lstore_repr) #lstore
@@ -187,7 +195,7 @@ def lstore(vm, frame, offset, bytecode):
     frame.pc = frame.pc + 1
 
 def istore_n_repr(vm, frame, index, offset, bytecode):
-    return str(offset)
+    return unicode(offset)
 
 @register_bytecode(59, 62, bc_repr=istore_n_repr)
 def istore_n(vm, frame, offset, bytecode):
@@ -227,6 +235,13 @@ def aastore(vm, frame, offset, bytecode):
     assert index >= 0 and index < len(arrayref.array)
     arrayref.array[index] = value
 
+@register_bytecode(84)
+def bastore(vm, frame, offset, bytecode):
+    value, index, arrayref = frame.pop(), frame.pop(), frame.pop()
+    assert arrayref is not null
+    assert index >= 0 and index < len(arrayref.array)
+    arrayref.array[index] = value
+
 @register_bytecode(85)
 def castore(vm, frame, offset, bytecode):
     value, index, arrayref = frame.pop(), frame.pop(), frame.pop()
@@ -259,6 +274,10 @@ def dupx1(vm, frame, offset, bytecode):
 @register_bytecode(96)
 def iadd(vm, frame, offset, bytecode):
     frame.push(intmask(intmask(frame.pop())+intmask(frame.pop())))
+
+@register_bytecode(97)
+def ladd(vm, frame, offset, bytecode):
+    frame.push(longlongmask(longlongmask(frame.pop())+longlongmask(frame.pop())))
 
 @register_bytecode(100)
 def isub(vm, frame, offset, bytecode):
@@ -389,7 +408,7 @@ def ishl(vm, frame, offset, bytecode):
 def lshl(vm, frame, offset, bytecode):
     shift, value = frame.pop(), frame.pop()
     assert 0 <= shift <= 63
-    frame.push(longlongmask(value << shift))
+    frame.push(longlongmask(long(value) << shift))
 
 @register_bytecode(124) #iushr
 def iushr(vm, frame, offset, bytecode):
@@ -502,22 +521,48 @@ def goto(vm, frame, offset, bytecode):
     frame.pc = decode_signed_offset(bytecode, frame.pc)-1
     assert frame.pc >= 0 and frame.pc < len(bytecode)
 
+@register_bytecode(171, use_next=None)
+def lookupswitch(vm, frame, offset, bytecode):
+    add = 4 - ((frame.pc + 1) % 4)
+    index = frame.pc + 1
+    if add != 4:
+        index += add
+    assert index % 4 == 0
+    default = decode_signed_int(bytecode, index)
+    index += 4
+    npairs = decode_signed_int(bytecode, index)
+    index += 4
+    key = frame.pop()
+    # XXX: use a binary search
+    for i in xrange(index, index+8*npairs, 8):
+         match = decode_signed_int(bytecode, i)
+         if match == key:
+             frame.pc += decode_signed_int(bytecode, i+4) -1
+             return True
+    frame.pc += default - 1
+
 @register_bytecode(172)
 def ireturn(vm, frame, offset, bytecode):
     return_value = int(frame.pop())
-    assert not len(frame.stack)
+    #assert not len(frame.stack)
     frame.return_value = intmask(return_value)
 
 @register_bytecode(173)
 def lreturn(vm, frame, offset, bytecode):
-    return_value = frame.pop()
-    assert not len(frame.stack)
+    return_value = long(frame.pop())
+    #assert not len(frame.stack)
     frame.return_value = longlongmask(return_value)
 
 @register_bytecode(174)
 def freturn(vm, frame, offset, bytecode):
-    return_value = frame.pop()
-    assert not len(frame.stack)
+    return_value = float(frame.pop())
+    #assert not len(frame.stack)
+    frame.return_value = float(return_value)
+
+@register_bytecode(175)
+def dreturn(vm, frame, offset, bytecode):
+    return_value = float(frame.pop())
+    #assert not len(frame.stack)
     frame.return_value = float(return_value)
 
 @register_bytecode(176)
@@ -534,7 +579,7 @@ def return_(vm, frame, offset, bytecode):
 
 def getstatic_repr(vm, frame, index, offset, bytecode):
     ref_index = (bytecode[index+1]<<8) | (bytecode[index+2])
-    return ' '.join(map(str, vm.resolve_field(frame.klass, ref_index)))
+    return ' '.join(map(unicode, vm.resolve_field(frame.klass, ref_index)))
 
 @register_bytecode(178, use_next=2, bc_repr=getstatic_repr)
 def getstatic(vm, frame, offset, bytecode):

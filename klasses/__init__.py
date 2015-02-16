@@ -6,6 +6,7 @@ import java_lang_String
 import java_lang_Throwable
 import java_lang_Double
 import java_lang_Thread
+import java_lang_Runtime
 import java_security_AccessController
 import sun_misc_VM
 import sun_misc_Unsafe
@@ -20,6 +21,7 @@ classes_with_natives = {
         'java/lang/Double': java_lang_Double,
         'java/lang/Thread': java_lang_Thread,
         'java/lang/String': java_lang_String,
+        'java/lang/Runtime': java_lang_Runtime,
         'java/security/AccessController': java_security_AccessController,
         'sun/misc/VM': sun_misc_VM,
         'sun/misc/Unsafe': sun_misc_Unsafe,

@@ -93,7 +93,7 @@ class ClassReader:
             return ConstantPoolItem(tag, [name_index, descriptor_index])
         elif tag == CONSTANT_Utf8:
             length = self._read_byte2()
-            string = ''
+            string = unicode()
             byte_index = 0
             while byte_index < length:
                 codepoint = self._read_byte()
@@ -133,7 +133,7 @@ class ClassReader:
             return ConstantPoolItem(tag, [descriptor_index])
         elif tag == CONSTANT_InvokeDynamic:
             bootstrap_method_attr_index = self._read_byte2()
-            name_and_type_index = self._read_byte22()
+            name_and_type_index = self._read_byte2()
             return ConstantPoolItem(tag, [bootstrap_method_attr_index, name_and_type_index])
 
         raise Exception('Unknown tag in constant pool %s' % tag)
@@ -312,14 +312,14 @@ class ClassReader:
         num_element_value_pairs = self._read_byte2()
         element_values = []
         for j in xrange(num_element_value_pairs):
-            element_name_index = self.read_byte2()
+            element_name_index = self._read_byte2()
             element_value = self.parse_element_value()
             element_name = self.klass.constant_pool.get_string(element_name_index)
             element_values.append((element_name, element_value))
         return 'element_value_pairs', element_values
 
     def parse_element_value(self):
-        tag = chr(self._read_byte())
+        tag = unichr(self._read_byte())
         if tag in 'BCDFIJSZsc':
             index = self._read_byte2()
             return tag, index

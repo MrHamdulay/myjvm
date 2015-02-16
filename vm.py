@@ -118,8 +118,10 @@ class VM:
         else:
             raise Exception('unknown field type %s' % field_type)
 
-    def throw_exception(self, frame, klass_name):
-        exception = self.load_class(klass_name).instantiate()
+    def throw_exception(self, frame, klass_name, descriptor='()V', *args):
+        klass = self.load_class(klass_name)
+        exception = klass.instantiate()
+        self.wrap_run_method(exception, klass.methods['<init>__'+descriptor], *args)
         frame.push(exception)
         frame.raised_exception = exception
 
@@ -167,9 +169,9 @@ class VM:
         min_level = len(self.frame_stack)-1
         while len(self.frame_stack) > min_level:
             frame = self.frame_stack[-1]
-            print
+            #print
             print 'frame stack', self.frame_stack
-            print 'stack stack', frame.stack
+            print 'stack stack', [unicode(x).encode('utf-8') for x in frame.stack]
             #print frame.pretty_code(self)
             if frame.method and frame.native_method is not None:
                 return_value = frame.native_method(
@@ -182,11 +184,11 @@ class VM:
                         self.frame_stack[-1].push(return_value)
                     else:
                         assert return_value is void
-                print 'returning to method %s.%s pc:%d return value %s' % (
-                        self.frame_stack[-1].klass.name,
-                        self.frame_stack[-1].method.name,
-                        self.frame_stack[-1].pc,
-                        return_value)
+                #print 'returning to method %s.%s pc:%d return value %s' % (
+                #        self.frame_stack[-1].klass.name,
+                #        self.frame_stack[-1].method.name,
+                #        self.frame_stack[-1].pc,
+                #        return_value)
                 continue
 
             bc = frame.code.code[frame.pc]
