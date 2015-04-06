@@ -150,7 +150,7 @@ def dloat_n(vm, frame, offset, bytecode):
 @register_bytecode(42, 45)
 def aload_n(vm, frame, offset, bytecode):
     val = frame.local_variables[offset]
-    assert isinstance(val, (ClassInstance, ArrayClass)) or val is null
+    assert isinstance(val, (ClassInstance, ArrayClass)) or val is null, 'not a reference %s' % repr(val)
     frame.push(val)
 
 @register_bytecode(46) #iaload
