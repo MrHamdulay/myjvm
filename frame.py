@@ -34,22 +34,12 @@ class Frame:
             i += 1
 
         if method and method.parameters:
-            print 'this is happening'
-            print parameters
-            print method.parameters
             for j, (value, parameter) in enumerate(zip(parameters[-len(method.parameters):], method.parameters)):
-                print 'eh?'
-                print self.local_variables
-                print i+j, value, parameter
                 self.local_variables[i+j] = value
                 if parameter in 'JD':
-                    print 'EH'
-                    print method.parameters, parameter
                     i += 1
                     self.local_variables[i+j] = 'extra'
-            #import pdb; pdb.set_trace()
         else:
-            print method, parameters
             assert not parameters
 
     def push(self, value):

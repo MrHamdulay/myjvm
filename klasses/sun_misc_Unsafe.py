@@ -21,3 +21,6 @@ def compareAndSwapObject(klass, vm, method, frame):
         o.array[offset] = x
         return 1
     return 0
+
+def getIntVolatile(klass, vm, method, frame):
+    pass

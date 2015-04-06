@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from classconstants import void, null
 from klass import Class
 
 def doPrivileged(klass, vm, method, frame):
@@ -8,3 +9,6 @@ def doPrivileged(klass, vm, method, frame):
     # instance to call on
     result = vm.wrap_run_method(action, method)
     return result
+
+def getStackAccessControlContext(klass, vm, method, frame):
+    return null

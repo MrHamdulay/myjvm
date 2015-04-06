@@ -14,6 +14,7 @@ def initGlobalThread(vm, frame):
     global_thread = Thread.instantiate()
     global_thread._values['name'] = 'main thread'
     global_thread._values['group'] = global_thread_group
+    global_thread._values['priority'] = 1
 
     vm.wrap_run_method(global_thread_group, ThreadGroup.methods['add__(Ljava/lang/Thread;)V'], global_thread)
     return global_thread
@@ -25,3 +26,6 @@ def registerNatives(klass, vm, method, frame):
 
 def currentThread(klass, vm, method, frame):
     return initGlobalThread(vm, frame)
+
+def setPriority0(klass, vm, method, frame):
+    return void

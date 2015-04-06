@@ -327,7 +327,6 @@ def ddiv(vm, frame, offset, bytecode):
 def ishr(vm, frame, offset, bytecode):
     b, a = frame.pop(), frame.pop()
     s = b & 0x1f
-    print a, b, s
     assert isinstance(a, int) and isinstance(b, int)
     frame.push(intmask(a>>s))
 
@@ -375,7 +374,6 @@ def integer_comparison(name, operator):
         b, a = frame.pop(), frame.pop()
         assert isinstance(a, int) and isinstance(b, int)
         if operator(a, b):
-            print 'pass'
             frame.pc = decode_signed_offset(bytecode, frame.pc)-1
             return
         frame.pc = frame.pc+2
@@ -729,7 +727,6 @@ def anewarray(vm, frame, offset, bytecode):
 @register_bytecode(190)
 def arraylength(vm, frame, offset, bytecode):
     arrayref = frame.pop()
-    print arrayref
     assert isinstance(arrayref, ArrayClass)
     frame.push(arrayref.size)
 
@@ -780,7 +777,6 @@ def checkcast(vm, frame, offset, bytecode):
         return
     descriptor = frame.klass.constant_pool.get_class(
         vm.constant_pool_index(bytecode, frame.pc-2))
-    print descriptor
     if descriptor[0] == '[':
         descriptor = parse_descriptor(descriptor)[0]
 
