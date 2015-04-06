@@ -128,12 +128,16 @@ class Class(object):
         is_static = method.access_flags & ACC_STATIC != 0
         num_args = len(method.parameters) + (0 if is_static else 1)
         arguments = [vm.frame_stack[-1].pop() for i in xrange(num_args)][::-1]
+        for argument in arguments:
+            assert argument is null or isinstance(argument,
+                    (int, long, ClassInstance, float)), 'not valid type '+str(type(argument))
         if not is_static:
             instance = arguments[0]
             assert instance is not null, '%s is null' % str(arguments[0])
             if method.name in instance._klass.method_overrides:
                 native_method = instance._klass.method_overrides[method.name]
         print 'adding method %s.%s to stack' % (self.name, method.name)
+        print 'with arguments %s' % repr(arguments)
         frame = Frame(
                 parameters=arguments,
                 max_stack=code.max_stack,

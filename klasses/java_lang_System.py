@@ -20,6 +20,7 @@ def arraycopy(klass, vm, method, frame):
     return void
 
 def registerNatives(klass, vm, method, frame):
+    klass.field_overrides['security'] = null
     Properties = vm.load_class('java/util/Properties')
     @Properties.override_native_method('getProperty')
     def getProperty(klass, vm, method, frame):
@@ -39,8 +40,10 @@ def registerNatives(klass, vm, method, frame):
         print 'setting property!', prop
         raise Exception
 
+    klass.field_overrides['props'] = Properties.instantiate()
+    return void
 
-
+def registerStreams(klass, vm):
     OutputStream = vm.load_class('java/io/OutputStream')
     PrintOutputStream = Class('java/io/PrintOutputStream', super_class=OutputStream)
     @PrintOutputStream.override_native_method('write')
@@ -54,8 +57,6 @@ def registerNatives(klass, vm, method, frame):
     vm.stack.push(system_out)
     vm.stack.push(system_out_stream)
     klass.field_overrides['out'] = system_out
-    klass.field_overrides['security'] = null
-    klass.field_overrides['props'] = Properties.instantiate()
 
     print PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')
     klass, method = PrintStream.get_method('<init>', '(Ljava/io/OutputStream;)V')

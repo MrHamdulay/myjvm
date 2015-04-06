@@ -15,6 +15,7 @@ def compareAndSwapObject(klass, vm, method, frame):
     offset = frame.get_local(2)
     expected = frame.get_local(3)
     x = frame.get_local(4)
+    print 'object, offset, expected, exchange'
     print o, offset, expected, x
     if o.array[offset] == expected:
         o.array[offset] = x

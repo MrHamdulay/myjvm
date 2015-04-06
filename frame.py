@@ -45,10 +45,13 @@ class Frame:
         return self.stack.pop()
 
     def insert_local(self, index, value):
+        assert value is not None
         self.local_variables[index] = value
 
     def get_local(self, index):
-        return self.local_variables[index]
+        value = self.local_variables[index]
+        assert value is not None
+        return value
 
     def __repr__(self):
         return '<Frame %s.%s pc:%d%s>' % (

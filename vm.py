@@ -29,9 +29,15 @@ class VM:
 
     def warmup(self):
         self.init_native_classes()
+        self.load_class('java/lang/Thread')
+        System = self.load_class('java/lang/System')
+        self.load_class('java/nio/charset/Charset')
+
+        System.registerStreams(
+                System,
+                self)
+        #self.load_class('java/lang/Class$Atomic')
         #self.load_class('java/lang/String')
-        #self.load_class('java/nio/charset/Charset')
-        #self.load_class('java/lang/System')
 
     def load_class(self, class_name):
         java_Class = None
@@ -172,6 +178,8 @@ class VM:
             #print
             print 'frame stack', self.frame_stack
             print 'stack stack', [unicode(x).encode('utf-8') for x in frame.stack]
+            print 'local variables', repr(frame.local_variables)
+            print
             #print frame.pretty_code(self)
             if frame.method and frame.native_method is not None:
                 return_value = frame.native_method(
@@ -191,8 +199,10 @@ class VM:
                 #        return_value)
                 continue
 
+            if frame.method.access_flags & ACC_STATIC == 0:
+                assert frame.klass.is_subclass(frame.local_variables[0])
+
             bc = frame.code.code[frame.pc]
-            frame.klass = frame.klass
             if bc in bytecodes:
                 start, bytecode_function, _, bc_repr = bytecodes[bc]
 

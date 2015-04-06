@@ -118,7 +118,7 @@ def iload(vm, frame, offset, bytecode):
     if bytecode[frame.pc] in (21, 22):
         assert isinstance(local, (long, int))
     elif bytecode[frame.pc] == 25:
-        assert isinstance(local, (ClassInstance, ArrayClass)) or local is null
+        assert isinstance(local, (ClassInstance, ArrayClass)) or local is null, 'unexpected type %s' % type(local)
     else:
         raise Exception
     frame.push(local)
@@ -449,7 +449,7 @@ def lxor(vm, frame, offset, bytecode):
 @register_bytecode(133) # i2l
 @register_bytecode(136) # l2i
 def i2l(vm, frame, offset, bytecode):
-    return None
+    pass
 
 @register_bytecode(134)
 def i2f(vm, frame, offset, bytecode):
@@ -652,6 +652,7 @@ def invokevirtual_special(vm, frame, offset, bytecode):
             # remove all our method parameters
             for i in xrange(len(method.parameters)+1):
                 frame.pop()
+            raise Exception
             vm.throw_exception(frame, 'java/lang/NullPointerException')
             return
         assert new_klass.is_subclass(instance),\
